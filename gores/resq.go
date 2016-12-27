@@ -14,7 +14,10 @@ import (
 // redis-cli -h host -p port -a password
 
 const QUEUE_PREFIX = "resq:queue:%s"
+const DEPLAYED_QUEUE_PREFIX = "resq:delayed:%s"
+
 const WATCHED_QUEUES = "resq:queues"
+const WATCHED_DELAYED_QUEUE_SCHEDULE = "resq:delayed_queue_schedule"
 const WATCHED_WORKERS = "resq:workers"
 const WATCHED_STAT = "resq:stat:%s"
 
@@ -136,7 +139,10 @@ func (resq *ResQ) watch_queue(queue string) error{
 func (resq *ResQ) Enqueue(item interface{}) error{
     /*
     Enqueue a job into a specific queue. Make sure the struct you are
-    passing has **queue**, **Args** attribute and a **perform** method on it.
+    passing has
+    **Queue**, **Enqueue_timestamp**, **Args** attribute
+    and a
+    **Perform** method on it.
     */
     hasQueue, _ := reflections.HasField(item, "Queue")
     hasArgs, _ := reflections.HasField(item, "Args")
@@ -186,7 +192,78 @@ func (resq *ResQ) Info() map[string]interface{} {
     return info
 }
 
+func (resq *ResQ) Enqueue_at(datetime int, item interface{}) error {
+    err := resq.DelayedPush(datetime, item)
+    if err != nil {
+        return err
+    }
+    return nil
+}
 
+func (resq *ResQ) DelayedPush(datetime int, item interface{}) error {
+    conn := resq.pool.Get()
+    key := strconv.Itoa(datetime)
+    _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))
+    if err != nil {
+        return errors.New("Invalid RPUSH response")
+    }
+    _, err = conn.Do("ZADD", WATCHED_DELAYED_QUEUE_SCHEDULE, datetime, datetime)
+    if err != nil {
+        err = errors.New("Invalid ZADD response")
+    }
+    return err
+}
+
+func (resq *ResQ) NextDelayedTimestamp() int {
+    conn := resq.pool.Get()
+    key := resq.CurrentTime()
+    data, err := conn.Do("ZRANGEBYSCORE", WATCHED_DELAYED_QUEUE_SCHEDULE, "-inf", key)
+    if err != nil || data == nil {
+        return 0
+    }
+    if len(data.([]interface{})) > 0 {
+        bytes := make([]byte, len(data.([]interface{})[0].([]uint8)))
+        for i, v := range data.([]interface{})[0].([]uint8) {
+            bytes[i] = byte(v)
+        }
+        res, _ :=  strconv.Atoi(string(bytes))
+        return res
+    }
+    return 0
+}
+
+func (resq *ResQ) NextItemForTimestamp(timestamp int) map[string]interface{} {
+    var res map[string]interface{}
+
+    s_time := strconv.Itoa(timestamp)
+    key := fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, s_time)
+    conn := resq.pool.Get()
+    reply, err := conn.Do("LPOP", key)
+    if reply == nil || err != nil {
+        return res
+    }
+    data, err := redis.Bytes(reply, err)
+    if err != nil {
+        return res
+    }
+    res = resq.Decode(data)
+    llen, err := conn.Do("LLEN", key)
+    if llen == nil || err != nil {
+        return res
+    }
+    if llen.(int64) == 0 {
+        conn.Do("DEL", key)
+        conn.Do("ZREM", WATCHED_DELAYED_QUEUE_SCHEDULE, timestamp)
+    }
+    return res
+}
+
+func (resq *ResQ) CurrentTime() int {
+    timestamp, _ := strconv.Atoi(time.Now().Format("20060102150405"))
+    return timestamp
+}
+
+/* -------------------------------------------------------------------------- */
 
 type Stat struct{
     Name string
