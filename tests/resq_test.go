@@ -30,7 +30,7 @@ func TestResQPushPop(t *testing.T){
 
     ret2 := resq.Pop("TestItem")
     if ret2 != nil{
-        t.Errorf("ResQ expected to return nil, but did not")
+        t.Errorf("ResQ Pop expected to return nil, but did not")
     }
 }
 

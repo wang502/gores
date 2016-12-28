@@ -27,25 +27,33 @@ type ResQ struct {
   Host string
 }
 
-func InitPool() *redis.Pool{
+func MakeRedisPool(server string, password string) *redis.Pool {
     pool := &redis.Pool{
         MaxIdle: 5,
         IdleTimeout: 240 * time.Second,
         Dial: func () (redis.Conn, error) {
-                c, err := redis.Dial("tcp", os.Getenv("REDISURL"))
-                if err != nil {
-                    return c, nil
-                }
-                c.Do("AUTH", os.Getenv("REDIS_PW"))
-                c.Do("SELECT", "gores")
-                return c, nil
-              },
+              c, err := redis.Dial("tcp", os.Getenv("REDISURL"))
+              if err != nil {
+                  return c, nil
+              }
+              c.Do("AUTH", os.Getenv("REDIS_PW"))
+              c.Do("SELECT", "gores")
+              return c, nil
+            },
         TestOnBorrow: func(c redis.Conn, t time.Time) error {
             _, err := c.Do("PING")
             return err
-          },
+        },
     }
     return pool
+}
+
+func InitPool() *redis.Pool{
+    return MakeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
+}
+
+func InitPoolFromString(server string, password string) *redis.Pool {
+    return MakeRedisPool(server, password)
 }
 
 func NewResQ() *ResQ {
@@ -59,6 +67,19 @@ func NewResQ() *ResQ {
               _watched_queues: mapset.NewSet(),
               Host: os.Getenv("REDISURL"),
             }
+}
+
+func NewResQFromString(server string, password string) *ResQ {
+  pool := InitPoolFromString(server, password)
+  if pool == nil {
+      fmt.Printf("InitPool() Error\n")
+      return nil
+  }
+  return &ResQ{
+            pool: pool,
+            _watched_queues: mapset.NewSet(),
+            Host: os.Getenv("REDISURL"),
+          }
 }
 
 func (resq *ResQ) Push(queue string, item interface{}) error{
