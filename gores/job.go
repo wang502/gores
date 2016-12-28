@@ -2,7 +2,6 @@ package gores
 
 import (
     "fmt"
-    "strconv"
     "time"
 )
 
@@ -21,6 +20,7 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
                 resq: resq,
                 worker: worker,
                 enqueue_timestamp: payload["Enqueue_timestamp"].(float64),
+                // Redis LPOP reply json, timestamp will be parsed to be float64
             }
 }
 
@@ -43,7 +43,8 @@ func (job *Job) Perform() error{
         metadata["enqueue_timestamp"] = job.enqueue_timestamp
     }
     metadata["failed"] = false
-    now, _ := strconv.Atoi(time.Now().Format("20060102150405"))
+    //now, _ := strconv.Atoi(time.Now().Format("20060102150405"))
+    now := time.Now().Unix()
     metadata["perfomed_timestamp"] = now
 
     err := InstancePerform(instance, args)
@@ -66,7 +67,7 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
         return false
     } else {
         now := job.resq.CurrentTime()
-        retry_at := now + int(retry_every.(float64))
+        retry_at := now + int64(retry_every.(float64))
         err := job.resq.Enqueue_at(retry_at, payload)
         if err != nil {
             return false

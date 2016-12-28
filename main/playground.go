@@ -2,7 +2,6 @@ package main
 
 import (
     "fmt"
-    "strconv"
     "time"
     "github.com/wang502/gores/gores"
 )
@@ -24,7 +23,8 @@ func main(){
 
     args1 := make(map[string]interface{})
     args1["id"] = 1
-    timestamp1, _ := strconv.Atoi(time.Now().Format("20060102150405"))
+    //timestamp1, _ := strconv.Atoi(time.Now().Format("20060102150405"))
+    timestamp1 := time.Now().Unix()
     item1 := gores.TestItem{
             Name: "TestItem",
             Queue: "TestItem",
@@ -49,7 +49,8 @@ func main(){
     /* test enqueue*/
     args2 := make(map[string]interface{})
     args2["id"] = 2
-    timestamp2, err := strconv.Atoi(time.Now().Format("20060102150405"))
+    //timestamp2, err := strconv.Atoi(time.Now().Format("20060102150405"))
+    timestamp2 := time.Now().Unix()
     item2 := gores.TestItem{
             Name: "TestItem",
             Queue: "TestItem",

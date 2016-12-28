@@ -213,7 +213,7 @@ func (resq *ResQ) Info() map[string]interface{} {
     return info
 }
 
-func (resq *ResQ) Enqueue_at(datetime int, item interface{}) error {
+func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
     err := resq.DelayedPush(datetime, item)
     if err != nil {
         return err
@@ -221,9 +221,9 @@ func (resq *ResQ) Enqueue_at(datetime int, item interface{}) error {
     return nil
 }
 
-func (resq *ResQ) DelayedPush(datetime int, item interface{}) error {
+func (resq *ResQ) DelayedPush(datetime int64, item interface{}) error {
     conn := resq.pool.Get()
-    key := strconv.Itoa(datetime)
+    key := strconv.FormatInt(datetime, 10)
     _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))
     if err != nil {
         return errors.New("Invalid RPUSH response")
@@ -235,7 +235,7 @@ func (resq *ResQ) DelayedPush(datetime int, item interface{}) error {
     return err
 }
 
-func (resq *ResQ) NextDelayedTimestamp() int {
+func (resq *ResQ) NextDelayedTimestamp() int64 {
     conn := resq.pool.Get()
     key := resq.CurrentTime()
     data, err := conn.Do("ZRANGEBYSCORE", WATCHED_DELAYED_QUEUE_SCHEDULE, "-inf", key)
@@ -248,15 +248,15 @@ func (resq *ResQ) NextDelayedTimestamp() int {
             bytes[i] = byte(v)
         }
         res, _ :=  strconv.Atoi(string(bytes))
-        return res
+        return int64(res)
     }
     return 0
 }
 
-func (resq *ResQ) NextItemForTimestamp(timestamp int) map[string]interface{} {
+func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
     var res map[string]interface{}
 
-    s_time := strconv.Itoa(timestamp)
+    s_time := strconv.FormatInt(timestamp, 10)
     key := fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, s_time)
     conn := resq.pool.Get()
     reply, err := conn.Do("LPOP", key)
@@ -279,8 +279,8 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int) map[string]interface{} {
     return res
 }
 
-func (resq *ResQ) CurrentTime() int {
-    timestamp, _ := strconv.Atoi(time.Now().Format("20060102150405"))
+func (resq *ResQ) CurrentTime() int64 {
+    timestamp := time.Now().Unix()
     return timestamp
 }
 

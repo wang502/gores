@@ -10,7 +10,7 @@ type TestItem struct{
     Name string `json:"Name"`
     Queue string `json:"Queue"`
     Args map[string]interface{} `json:"Args"`
-    Enqueue_timestamp int `json:"Enqueue_timestamp"`
+    Enqueue_timestamp int64 `json:"Enqueue_timestamp"`
 }
 
 func (t *TestItem) string() string{

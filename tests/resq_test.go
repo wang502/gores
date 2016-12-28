@@ -5,19 +5,13 @@ import (
     "github.com/wang502/gores/gores"
 )
 
-type TestItem struct{
-    Name string `json:"Name"`
-}
-
-func (t *TestItem) string() string{
-    return t.Name
-}
+var (
+    //resq declared in job_test.go
+    //item declared in job_test.go
+    stat = gores.NewStat("TestItem", resq)
+)
 
 func TestResQPushPop(t *testing.T){
-    resq := gores.NewResQ()
-    item := TestItem{
-              Name: "TestItem",
-            }
     err := resq.Push("TestItem", item)
     if err != nil{
         t.Errorf("ResQ Push returned ERROR")
@@ -35,10 +29,6 @@ func TestResQPushPop(t *testing.T){
 }
 
 func TestResQSize(t *testing.T){
-    resq := gores.NewResQ()
-    item := TestItem{
-              Name: "TestItem",
-            }
     err := resq.Push("TestItem", item)
     if err != nil{
         t.Errorf("ResQ Push returned ERROR")
@@ -53,8 +43,6 @@ func TestResQSize(t *testing.T){
 }
 
 func TestStat(t *testing.T) {
-  resq := gores.NewResQ()
-  stat := gores.NewStat("TestItem", resq)
   v := stat.Get()
   if v != 0 {
       t.Errorf("Stat Get() expected to return 0 but returned %d", v)
