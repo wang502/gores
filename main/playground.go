@@ -6,7 +6,7 @@ import (
     "time"
     "github.com/wang502/gores/gores"
 )
-
+/*
 type TestItem struct{
     Name string `json:"Name"`
     Queue string `json:"Queue"`
@@ -17,6 +17,7 @@ type TestItem struct{
 func (t *TestItem) string() string{
     return t.Name
 }
+*/
 
 func main(){
     resq := gores.NewResQ()
@@ -24,8 +25,8 @@ func main(){
     args1 := make(map[string]interface{})
     args1["id"] = 1
     timestamp1, _ := strconv.Atoi(time.Now().Format("20060102150405"))
-    item1 := TestItem{
-            Name: "ResQ",
+    item1 := gores.TestItem{
+            Name: "TestItem",
             Queue: "TestItem",
             Args: args1,
             Enqueue_timestamp: timestamp1,
@@ -40,9 +41,6 @@ func main(){
     if val, _ := ret["Name"]; val != "ResQ" {
         fmt.Printf("ResQ Pop Value ERROR\n")
     }
-    if val, _ := ret["Struct"]; val != "TestItem" {
-        fmt.Printf("ResQ Pop Value ERROR\n")
-    }
 
     ret2 := resq.Pop("TestItem")
     fmt.Println(ret2)
@@ -52,8 +50,8 @@ func main(){
     args2 := make(map[string]interface{})
     args2["id"] = 2
     timestamp2, err := strconv.Atoi(time.Now().Format("20060102150405"))
-    item2 := TestItem{
-            Name: "ResQ",
+    item2 := gores.TestItem{
+            Name: "TestItem",
             Queue: "TestItem",
             Args: args2,
             Enqueue_timestamp: timestamp2,
@@ -79,8 +77,8 @@ func main(){
     /* test Enqueue_at()*/
     now := resq.CurrentTime()
     fmt.Println(now)
-    err = resq.Enqueue_at(now, TestItem{
-                                  Name: "ResQ",
+    err = resq.Enqueue_at(now, gores.TestItem{
+                                  Name: "TestItem",
                                   Queue: "TestItem",
                                   Args: args2,
                                   Enqueue_timestamp: now,
@@ -95,6 +93,7 @@ func main(){
 
     next_item := resq.NextItemForTimestamp(now)
     fmt.Println(next_item)
+
     /* test Stat*/
     /*
     stat := gores.NewStat("TestItem", resq)
@@ -113,4 +112,13 @@ func main(){
     fmt.Println(ok)
     fmt.Printf("stat's value %d\n", stat.Get())
     */
+
+    /* Test job & registry */
+    gores.InitRegistry()
+    fmt.Println("Perform Job: ")
+    job := gores.NewJob("TestItem", ret, resq, "TestWorker")
+    err = job.Perform()
+    if err != nil {
+        fmt.Println("Error Performing Job")
+    }
 }

@@ -16,7 +16,7 @@ func (t *TestItem) string() string{
 func TestResQPushPop(t *testing.T){
     resq := gores.NewResQ()
     item := TestItem{
-              Name: "ResQ",
+              Name: "TestItem",
             }
     err := resq.Push("TestItem", item)
     if err != nil{
@@ -24,10 +24,7 @@ func TestResQPushPop(t *testing.T){
     }
 
     ret1 := resq.Pop("TestItem")
-    if val, _ := ret1["Name"]; val != "ResQ"{
-        t.Errorf("ResQ Pop Value ERROR")
-    }
-    if val, _ := ret1["Struct"]; val != "TestItem"{
+    if val, _ := ret1["Name"]; val != "TestItem"{
         t.Errorf("ResQ Pop Value ERROR")
     }
 
@@ -40,7 +37,7 @@ func TestResQPushPop(t *testing.T){
 func TestResQSize(t *testing.T){
     resq := gores.NewResQ()
     item := TestItem{
-              Name: "ResQ",
+              Name: "TestItem",
             }
     err := resq.Push("TestItem", item)
     if err != nil{
