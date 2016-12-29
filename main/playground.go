@@ -140,6 +140,9 @@ func worker_main(){
         fmt.Println("Error Register worker")
     }
 
+    // test Exists()
+    fmt.Printf("Worker: %s exists? %d\n", worker_id, worker.Exists(worker_id))
+
     // test unregiter worker
     err = worker.UnregisterWorker()
     if err != nil {

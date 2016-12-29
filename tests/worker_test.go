@@ -35,6 +35,11 @@ func TestRegisterWorker(t *testing.T) {
     if err != nil {
         t.Error("Error Register Worker")
     }
+
+    exist := worker.Exists(worker.String())
+    if exist != 1 {
+        t.Errorf("Error Register Worker")
+    }
 }
 
 func TestUnregisterWorker(t *testing.T) {
