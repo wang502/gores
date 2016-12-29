@@ -3,7 +3,9 @@ package gores
 import (
     "errors"
     "fmt"
+    "log"
     "os"
+    "os/exec"
     "strings"
     "time"
     "github.com/deckarep/golang-set"
@@ -56,15 +58,23 @@ func NewWorkerFromString(server string, password string, queues mapset.Set) *Wor
            }
 }
 
+func (worker *Worker) ResQ() *ResQ {
+    return worker.resq
+}
+
 // Worker ID
 // hostname:pid:queue1,queue2,queue3
 func (worker *Worker) String() string {
-    qs := ""
-    it := worker.queues.Iterator()
-    for elem := range it.C {
-        qs += elem.(string) + ","
+    if worker.id != "" {
+        return worker.id
+    } else {
+        qs := ""
+        it := worker.queues.Iterator()
+        for elem := range it.C {
+            qs += elem.(string) + ","
+        }
+        return fmt.Sprintf("%s:%d:%s", worker.hostname, worker.pid, qs[:len(qs)-1])
     }
-    return fmt.Sprintf("%s:%d:%s", worker.hostname, worker.pid, qs[:len(qs)-1])
 }
 
 func (worker *Worker) RegisterWorker() error{
@@ -94,8 +104,23 @@ func (worker *Worker) UnregisterWorker() error {
     return err
 }
 
-func (worker *Worker) PruneDeadWorkers() error {
-    //all_workers := worker.All(worker.resq)
+func (this *Worker) PruneDeadWorkers() error {
+    all_workers := this.All(this.resq)
+    all_machine_pids := this.WorkerPids()
+    for _, w := range all_workers {
+        id_tokens := strings.Split(w.id, ":")
+        host := id_tokens[0]
+        w_pid := id_tokens[1]
+        if strings.Compare(host, this.hostname) != 0 {
+            continue
+        }
+        if all_machine_pids.Contains(w_pid) {
+            continue
+        }
+        fmt.Println(w_pid)
+        fmt.Printf("Pruning dead worker: %s\n", w.String())
+        w.UnregisterWorker()
+    }
     return nil
 }
 
@@ -132,4 +157,20 @@ func (worker *Worker) Exists(worker_id string) int64 {
         return 0
     }
     return reply.(int64)
+}
+
+
+func (worker *Worker) WorkerPids() mapset.Set{
+    /* Returns a set of all pids (as strings) on
+      this machine.  Used when pruning dead workers. */
+    out, err := exec.Command("ps").Output()
+    if err != nil {
+        log.Fatal(err)
+    }
+    out_lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+    in_slice := make([]interface{}, len(out_lines)-1) // skip first row
+    for i, line := range out_lines[1:] {
+        in_slice[i] = strings.Split(strings.TrimSpace(line), " ")[0] // pid at index 0
+    }
+    return mapset.NewSetFromSlice(in_slice)
 }

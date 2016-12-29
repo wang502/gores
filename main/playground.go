@@ -24,7 +24,6 @@ func job_main(){
 
     args1 := make(map[string]interface{})
     args1["id"] = 1
-    //timestamp1, _ := strconv.Atoi(time.Now().Format("20060102150405"))
     timestamp1 := time.Now().Unix()
     item1 := gores.TestItem{
             Name: "TestItem",
@@ -50,7 +49,6 @@ func job_main(){
     /* test enqueue*/
     args2 := make(map[string]interface{})
     args2["id"] = 2
-    //timestamp2, err := strconv.Atoi(time.Now().Format("20060102150405"))
     timestamp2 := time.Now().Unix()
     item2 := gores.TestItem{
             Name: "TestItem",
@@ -143,11 +141,23 @@ func worker_main(){
     // test Exists()
     fmt.Printf("Worker: %s exists? %d\n", worker_id, worker.Exists(worker_id))
 
+    all_workers := worker.All(worker.ResQ())
+    fmt.Printf("number of workers: %d\n", len(all_workers))
+
+    // test PruneDeadWorkers()
+    worker.PruneDeadWorkers()
+
     // test unregiter worker
+    /*
     err = worker.UnregisterWorker()
     if err != nil {
         fmt.Println("Error Unregister Worker")
     }
+    */
+    
+    // test WorkerPids()
+    pid_set := worker.WorkerPids()
+    fmt.Printf("pid_set contains 335? %t\n", pid_set.Contains("335"))
 }
 
 func main() {
