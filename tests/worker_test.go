@@ -48,3 +48,37 @@ func TestUnregisterWorker(t *testing.T) {
         t.Errorf("Error Unregister Worker")
     }
 }
+
+func MakeTestWorkers(num int) []*gores.Worker {
+    test_queue := []interface{}{"test1", "test2", "test3"}
+    test_queue_set := mapset.NewSetFromSlice(test_queue)
+    ret := make([]*gores.Worker, num)
+    for i:=0; i<num; i++ {
+        ret[i] = gores.NewWorker(test_queue_set)
+    }
+    return ret
+}
+
+func TestAll(t *testing.T) {
+    test_workers := MakeTestWorkers(1)
+    for _, w := range test_workers {
+        err := w.RegisterWorker()
+        if err != nil {
+            t.Errorf("Error Register Worker")
+        }
+    }
+
+    all_workers := test_workers[0].All(test_workers[0].ResQ())
+    if len(all_workers) != len(test_workers) {
+        t.Errorf("Worker All() did not return all workers")
+    }
+
+    for _, w := range test_workers {
+        w.UnregisterWorker()
+    }
+
+    all_workers = test_workers[0].All(test_workers[0].ResQ())
+    if len(all_workers) != 0 {
+        t.Errorf("Worker Unregsiter Worker unsuccessful")
+    }
+}

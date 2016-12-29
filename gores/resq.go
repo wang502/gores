@@ -189,7 +189,10 @@ func (resq *ResQ) Queues() []string{
 
 func (resq *ResQ) Workers() []string {
     conn := resq.pool.Get()
-    data, _ := conn.Do("SMEMBERS", WATCHED_WORKERS)
+    data, err := conn.Do("SMEMBERS", WATCHED_WORKERS)
+    if data == nil || err != nil {
+        return nil
+    }
     workers := make([]string, len(data.([]interface{})))
     for i, w := range data.([]interface{}) {
         workers[i] = string(w.([]byte))

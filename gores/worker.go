@@ -59,6 +59,7 @@ func NewWorkerFromString(server string, password string, queues mapset.Set) *Wor
 }
 
 func (worker *Worker) ResQ() *ResQ {
+    /* export access to **resq** identifier to other package*/
     return worker.resq
 }
 
@@ -173,4 +174,9 @@ func (worker *Worker) WorkerPids() mapset.Set{
         in_slice[i] = strings.Split(strings.TrimSpace(line), " ")[0] // pid at index 0
     }
     return mapset.NewSetFromSlice(in_slice)
+}
+
+func (worker *Worker) Size() int {
+    /* Return total number of workers */
+    return len(worker.resq.Workers())
 }
