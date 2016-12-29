@@ -12,6 +12,8 @@ var (resq = gores.NewResQ()
               Queue: "TestItem",
               Args: args,
               Enqueue_timestamp: resq.CurrentTime(),
+              Retry: true,
+              Retry_every: 10,
             }
 )
 

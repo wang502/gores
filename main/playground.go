@@ -4,6 +4,7 @@ import (
     "fmt"
     "time"
     "github.com/wang502/gores/gores"
+    "github.com/deckarep/golang-set"
 )
 /*
 type TestItem struct{
@@ -18,7 +19,7 @@ func (t *TestItem) string() string{
 }
 */
 
-func main(){
+func job_main(){
     resq := gores.NewResQ()
 
     args1 := make(map[string]interface{})
@@ -122,4 +123,30 @@ func main(){
     if err != nil {
         fmt.Println("Error Performing Job")
     }
+}
+
+func worker_main(){
+    queues := []interface{}{"TestItem", "Comment"}
+    q_set := mapset.NewSetFromSlice(queues)
+    worker := gores.NewWorker(q_set)
+
+    // test worker id
+    worker_id := worker.String()
+    fmt.Printf("worker id: \n%s\n", worker_id)
+
+    // test register worker
+    err := worker.RegisterWorker()
+    if err != nil {
+        fmt.Println("Error Register worker")
+    }
+
+    // test unregiter worker
+    err = worker.UnregisterWorker()
+    if err != nil {
+        fmt.Println("Error Unregister Worker")
+    }
+}
+
+func main() {
+    worker_main()
 }

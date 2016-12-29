@@ -11,6 +11,8 @@ type TestItem struct{
     Queue string `json:"Queue"`
     Args map[string]interface{} `json:"Args"`
     Enqueue_timestamp int64 `json:"Enqueue_timestamp"`
+    Retry bool `json:"Retry"`
+    Retry_every int `json:"Retry_every"`
 }
 
 func (t *TestItem) string() string{

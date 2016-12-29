@@ -50,13 +50,13 @@ func (job *Job) Perform() error{
     err := InstancePerform(instance, args)
     if err != nil {
         metadata["failed"] = true
+        if job.Retry(job.payload) {
+            metadata["retried"] = true
+        } else {
+            metadata["retried"] = false
+        }
+        // InstanceAfterPerform() deal with metadata
     }
-    if job.Retry(job.payload) {
-        metadata["retry"] = true
-    } else {
-        metadata["retry"] = false
-    }
-    // go on
     return err
 }
 
@@ -68,6 +68,7 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
     } else {
         now := job.resq.CurrentTime()
         retry_at := now + int64(retry_every.(float64))
+        fmt.Printf("retry_at: %d\n", retry_at)
         err := job.resq.Enqueue_at(retry_at, payload)
         if err != nil {
             return false

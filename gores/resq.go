@@ -14,6 +14,7 @@ import (
 // redis-cli -h host -p port -a password
 
 const QUEUE_PREFIX = "resq:queue:%s"
+const WORKER_PREFIX = "resq:worker:%s"
 const DEPLAYED_QUEUE_PREFIX = "resq:delayed:%s"
 
 const WATCHED_QUEUES = "resq:queues"
@@ -189,9 +190,9 @@ func (resq *ResQ) Queues() []string{
 func (resq *ResQ) Workers() []string {
     conn := resq.pool.Get()
     data, _ := conn.Do("SMEMBERS", WATCHED_WORKERS)
-    workers := make([]string, 0)
-    for _, w := range data.([]interface{}) {
-        workers = append(workers, string(w.([]byte)))
+    workers := make([]string, len(data.([]interface{})))
+    for i, w := range data.([]interface{}) {
+        workers[i] = string(w.([]byte))
     }
     return workers
 }
