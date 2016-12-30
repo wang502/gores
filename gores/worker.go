@@ -7,6 +7,7 @@ import (
     "os"
     "os/exec"
     "strings"
+    "sync"
     "time"
     "github.com/deckarep/golang-set"
 )
@@ -183,12 +184,7 @@ func (worker *Worker) Size() int {
     return len(worker.resq.Workers())
 }
 
-func RunWorker(server string, password string, queues mapset.Set) {
-    //worker := NewWorkerFromString(server, password, queues)
-    //worker.Work()
-}
-
-func (worker *Worker) Startup(dispatcher *Dispatcher) error {
+func (worker *Worker) Startup(dispatcher *Dispatcher, wg *sync.WaitGroup) error {
     err := worker.PruneDeadWorkers()
     if err != nil {
         err = errors.New("Satrtup() ERROR when PruneDeadWorkers()")
@@ -198,6 +194,8 @@ func (worker *Worker) Startup(dispatcher *Dispatcher) error {
         err = errors.New("Startup() ERROR when RegisterWorker()")
     }
     worker.Work(dispatcher)
+
+    wg.Done()
     return err
 }
 
@@ -205,7 +203,7 @@ func (worker *Worker) Work(dispatcher *Dispatcher){
     for {
         select {
         case job := <-dispatcher.job_channel:
-            if err := InstancePerform(job, job.payload); err != nil {
+            if err := job.Perform(); err != nil {
                 log.Fatalf("ERROR Perform Job, %s", err)
             }
         }

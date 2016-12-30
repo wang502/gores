@@ -80,6 +80,7 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
 
 func ReserveJob(resq *ResQ, queues mapset.Set, worker_id string) *Job {
     queue, payload := resq.BlockPop(queues)
+    fmt.Println(payload)
     if payload != nil {
         return NewJob(queue, payload, resq, worker_id)
     }

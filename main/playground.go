@@ -185,6 +185,31 @@ func resq_main() {
 
 }
 
+func dispatcher_main(){
+  gores.InitRegistry()
+  resq := gores.NewResQ()
+
+  args1 := make(map[string]interface{})
+  args1["id"] = 1
+  timestamp1 := time.Now().Unix()
+  item1 := gores.TestItem{
+        Name: "TestItem",
+        Queue: "TestItem",
+        Args: args1,
+        Enqueue_timestamp: timestamp1,
+      }
+  err := resq.Push("TestItem", item1)
+  if err != nil{
+      fmt.Printf("ResQ Push returned ERROR\n")
+  }
+
+  queues := []interface{}{"TestItem", "TestItem1"}
+  queues_set := mapset.NewSetFromSlice(queues)
+
+  dispatcher := gores.NewDispatcher(resq, 2, queues_set)
+  dispatcher.Run()
+}
+
 func main() {
-    worker_main()
+    dispatcher_main()
 }
