@@ -154,10 +154,35 @@ func worker_main(){
         fmt.Println("Error Unregister Worker")
     }
     */
-    
+
     // test WorkerPids()
     pid_set := worker.WorkerPids()
     fmt.Printf("pid_set contains 335? %t\n", pid_set.Contains("335"))
+}
+
+func resq_main() {
+    resq := gores.NewResQ()
+
+    args1 := make(map[string]interface{})
+    args1["id"] = 1
+    timestamp1 := time.Now().Unix()
+    item1 := gores.TestItem{
+          Name: "TestItem1",
+          Queue: "TestItem1",
+          Args: args1,
+          Enqueue_timestamp: timestamp1,
+        }
+    err := resq.Push("TestItem1", item1)
+    if err != nil{
+        fmt.Printf("ResQ Push returned ERROR\n")
+    }
+
+    queues := []interface{}{"TestItem", "TestItem1"}
+    queues_set := mapset.NewSetFromSlice(queues)
+    queue, ret := resq.BlockPop(queues_set)
+    fmt.Println(queue)
+    fmt.Println(ret)
+
 }
 
 func main() {

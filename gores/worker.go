@@ -63,9 +63,9 @@ func (worker *Worker) ResQ() *ResQ {
     return worker.resq
 }
 
-// Worker ID
-// hostname:pid:queue1,queue2,queue3
 func (worker *Worker) String() string {
+    /* Worker ID
+      hostname:pid:queue1,queue2,queue3 */
     if worker.id != "" {
         return worker.id
     } else {
@@ -74,7 +74,8 @@ func (worker *Worker) String() string {
         for elem := range it.C {
             qs += elem.(string) + ","
         }
-        return fmt.Sprintf("%s:%d:%s", worker.hostname, worker.pid, qs[:len(qs)-1])
+        worker.id = fmt.Sprintf("%s:%d:%s", worker.hostname, worker.pid, qs[:len(qs)-1])
+        return worker.id
     }
 }
 
@@ -118,9 +119,10 @@ func (this *Worker) PruneDeadWorkers() error {
         if all_machine_pids.Contains(w_pid) {
             continue
         }
-        fmt.Println(w_pid)
         fmt.Printf("Pruning dead worker: %s\n", w.String())
-        w.UnregisterWorker()
+        if w != nil {
+          w.UnregisterWorker()
+        }
     }
     return nil
 }
@@ -180,3 +182,40 @@ func (worker *Worker) Size() int {
     /* Return total number of workers */
     return len(worker.resq.Workers())
 }
+
+func RunWorker(server string, password string, queues mapset.Set) {
+    //worker := NewWorkerFromString(server, password, queues)
+    //worker.Work()
+}
+
+func (worker *Worker) Startup() error {
+    err := worker.PruneDeadWorkers()
+    if err != nil {
+        err = errors.New("Satrtup() ERROR when PruneDeadWorkers()")
+    }
+    err = worker.RegisterWorker()
+    if err != nil {
+        err = errors.New("Startup() ERROR when RegisterWorker()")
+    }
+    return err
+}
+
+/*
+func (worker *Worker) Work(){
+    err := worker.Startup()
+    if err != nil {
+        err = errors.New("ERROR Startup")
+        log.Fatalf(err)
+    }
+    for true {
+        if worker.shutdown {
+            log.Fatalf("Shutdown Scheduled")
+            break
+        }
+
+        worker.RegisterWorker()
+
+        job := ReserveJob(worker.resq, worker.queues, worker.String())
+    }
+}
+*/

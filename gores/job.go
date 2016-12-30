@@ -3,6 +3,7 @@ package gores
 import (
     "fmt"
     "time"
+    "github.com/deckarep/golang-set"
 )
 
 type Job struct {
@@ -19,8 +20,8 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
                 payload: payload,
                 resq: resq,
                 worker: worker,
-                enqueue_timestamp: payload["Enqueue_timestamp"].(float64),
                 // Redis LPOP reply json, timestamp will be parsed to be float64
+                enqueue_timestamp: payload["Enqueue_timestamp"].(float64),
             }
 }
 
@@ -74,4 +75,13 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
         }
         return true
     }
+}
+
+
+func ReserveJob(resq *ResQ, queues mapset.Set, worker_id string) *Job {
+    queue, payload := resq.BlockPop(queues)
+    if payload != nil {
+        return NewJob(queue, payload, resq, worker_id)
+    }
+    return nil
 }

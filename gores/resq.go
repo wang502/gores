@@ -6,21 +6,13 @@ import (
   "os"
   "errors"
   "strconv"
+  _ "strings"
   "time"
   "github.com/garyburd/redigo/redis"
   "github.com/deckarep/golang-set"
   "gopkg.in/oleiade/reflections.v1"
 )
 // redis-cli -h host -p port -a password
-
-const QUEUE_PREFIX = "resq:queue:%s"
-const WORKER_PREFIX = "resq:worker:%s"
-const DEPLAYED_QUEUE_PREFIX = "resq:delayed:%s"
-
-const WATCHED_QUEUES = "resq:queues"
-const WATCHED_DELAYED_QUEUE_SCHEDULE = "resq:delayed_queue_schedule"
-const WATCHED_WORKERS = "resq:workers"
-const WATCHED_STAT = "resq:stat:%s"
 
 type ResQ struct {
   pool *redis.Pool
@@ -118,6 +110,30 @@ func (resq *ResQ) Pop(queue string) map[string]interface{}{
         decoded["Struct"] = queue
     }
     return decoded
+}
+
+func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
+    var decoded map[string]interface{}
+
+    conn := resq.pool.Get()
+    queues_slice := make([]interface{}, queues.Cardinality())
+    it := queues.Iterator()
+    i := 0
+    for elem := range it.C {
+        queues_slice[i] = fmt.Sprintf(QUEUE_PREFIX, elem)
+        i += 1
+    }
+    r_args := append(queues_slice, BPOP_BLOCK_TIME)
+    data, err := conn.Do("BLPOP", r_args...) // block time: 1
+
+    if data == nil || err != nil {
+        return "", decoded
+    }
+
+    // returned data contains [key, value], extract key at index 0, value at index 1
+    queue_key := string(data.([]interface{})[0].([]byte))
+    decoded = resq.Decode(data.([]interface{})[1].([]byte))
+    return queue_key, decoded
 }
 
 func (resq *ResQ) Decode(data []byte) map[string]interface{}{
@@ -299,7 +315,7 @@ type Stat struct{
 func NewStat(name string, resq *ResQ) *Stat {
     return &Stat{
               Name: name,
-              Key: fmt.Sprintf(WATCHED_STAT, name),
+              Key: fmt.Sprintf(STAT_PREFIX, name),
               Resq: resq,
           }
 }

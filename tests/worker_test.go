@@ -1,6 +1,7 @@
 package tests
 
 import (
+    "os"
     "strings"
     "testing"
     "github.com/deckarep/golang-set"
@@ -22,7 +23,8 @@ func TestNewWorker(t *testing.T){
 func TestWorkerString(t *testing.T){
     worker_id := worker.String()
     id_tokens := strings.Split(worker_id, ":")
-    if strings.Compare(id_tokens[0], "xingxing.local") != 0 {
+    hostname, _ := os.Hostname()
+    if strings.Compare(id_tokens[0], hostname) != 0 {
         t.Errorf("Worker id contains incorrect hostname")
     }
     if strings.Compare(id_tokens[2], "Comment,TestItem") != 0 && strings.Compare(id_tokens[2], "TestItem,Comment") != 0 {
@@ -74,7 +76,10 @@ func TestAll(t *testing.T) {
     }
 
     for _, w := range test_workers {
-        w.UnregisterWorker()
+        err := w.UnregisterWorker()
+        if err != nil {
+            t.Errorf("ERROR Unregister Worker")
+        }
     }
 
     all_workers = test_workers[0].All(test_workers[0].ResQ())
