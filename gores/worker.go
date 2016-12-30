@@ -188,7 +188,7 @@ func RunWorker(server string, password string, queues mapset.Set) {
     //worker.Work()
 }
 
-func (worker *Worker) Startup() error {
+func (worker *Worker) Startup(dispatcher *Dispatcher) error {
     err := worker.PruneDeadWorkers()
     if err != nil {
         err = errors.New("Satrtup() ERROR when PruneDeadWorkers()")
@@ -197,25 +197,17 @@ func (worker *Worker) Startup() error {
     if err != nil {
         err = errors.New("Startup() ERROR when RegisterWorker()")
     }
+    worker.Work(dispatcher)
     return err
 }
 
-/*
-func (worker *Worker) Work(){
-    err := worker.Startup()
-    if err != nil {
-        err = errors.New("ERROR Startup")
-        log.Fatalf(err)
-    }
-    for true {
-        if worker.shutdown {
-            log.Fatalf("Shutdown Scheduled")
-            break
+func (worker *Worker) Work(dispatcher *Dispatcher){
+    for {
+        select {
+        case job := <-dispatcher.job_channel:
+            if err := InstancePerform(job, job.payload); err != nil {
+                log.Fatalf("ERROR Perform Job, %s", err)
+            }
         }
-
-        worker.RegisterWorker()
-
-        job := ReserveJob(worker.resq, worker.queues, worker.String())
     }
 }
-*/
