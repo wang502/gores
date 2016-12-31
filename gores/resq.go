@@ -401,7 +401,6 @@ func InitConfig() (*Config, error) {
 
 func Launch() {
     config, err := InitConfig()
-    fmt.Println(config.Queues)
     if err != nil {
         fmt.Println(err)
         return
