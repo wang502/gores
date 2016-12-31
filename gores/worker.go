@@ -7,6 +7,7 @@ import (
     "os"
     "os/exec"
     "strings"
+    "strconv"
     "sync"
     "time"
     "github.com/deckarep/golang-set"
@@ -14,6 +15,7 @@ import (
 
 type Worker struct{
     id string
+    goroutine_id int
     queues mapset.Set
     shutdown bool
     child string
@@ -23,7 +25,7 @@ type Worker struct{
     started int64
 }
 
-func NewWorker(queues mapset.Set) *Worker {
+func NewWorker(queues mapset.Set, goroutine_id int) *Worker {
     resq := NewResQ()
     if resq == nil {
         return nil
@@ -31,6 +33,7 @@ func NewWorker(queues mapset.Set) *Worker {
     hostname, _ := os.Hostname()
     return &Worker{
               id : "",
+              goroutine_id : goroutine_id,
               queues: queues,
               shutdown: false,
               child: "",
@@ -41,7 +44,7 @@ func NewWorker(queues mapset.Set) *Worker {
            }
 }
 
-func NewWorkerFromString(server string, password string, queues mapset.Set) *Worker{
+func NewWorkerFromString(server string, password string, queues mapset.Set, goroutine_id int) *Worker{
     resq := NewResQFromString(server, password)
     if resq == nil {
         return nil
@@ -49,6 +52,7 @@ func NewWorkerFromString(server string, password string, queues mapset.Set) *Wor
     hostname, _ := os.Hostname()
     return &Worker{
               id : "",
+              goroutine_id : goroutine_id,
               queues: queues,
               shutdown: false,
               child: "",
@@ -75,7 +79,7 @@ func (worker *Worker) String() string {
         for elem := range it.C {
             qs += elem.(string) + ","
         }
-        worker.id = fmt.Sprintf("%s:%d:%s", worker.hostname, worker.pid, qs[:len(qs)-1])
+        worker.id = fmt.Sprintf("%s:%d:%d:%s", worker.hostname, worker.pid, worker.goroutine_id, qs[:len(qs)-1])
         return worker.id
     }
 }
@@ -129,27 +133,28 @@ func (this *Worker) PruneDeadWorkers() error {
 }
 
 func (worker *Worker) All(resq *ResQ) []*Worker {
-    workers := resq.Workers()
-    ret := make([]*Worker, len(workers))
-    for i, w := range workers{
-        ret[i] = worker.Find(w, resq)
+    worker_ids := resq.Workers()
+    all_workers := make([]*Worker, len(worker_ids))
+    for i, w := range worker_ids{
+        all_workers[i] = worker.Find(w, resq)
     }
-    return ret
+    return all_workers
 }
 
 func (worker *Worker) Find(worker_id string, resq *ResQ) *Worker {
     var new_worker *Worker
     if worker.Exists(worker_id) == 1 {
         id_tokens := strings.Split(worker_id, ":")
-        q_slice := strings.Split(id_tokens[len(id_tokens)-1], ",")
+        goroutine_id, _ := strconv.Atoi(id_tokens[2])
 
+        q_slice := strings.Split(id_tokens[len(id_tokens)-1], ",")
         in_slice := make([]interface{}, len(q_slice))
         for i, q := range q_slice {
             in_slice[i] = q
         }
         q_set := mapset.NewSetFromSlice(in_slice)
 
-        new_worker =  NewWorker(q_set)
+        new_worker =  NewWorker(q_set, goroutine_id)
         new_worker.id = worker_id
     }
     return new_worker

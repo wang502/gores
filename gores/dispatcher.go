@@ -1,7 +1,7 @@
 package gores
 
 import (
-    "fmt"
+    _ "fmt"
     "sync"
     _ "time"
     "github.com/deckarep/golang-set"
@@ -30,11 +30,9 @@ func NewDispatcher(resq *ResQ, max_workers int, queues mapset.Set) *Dispatcher{
 func (disp *Dispatcher) Run(){
     var wg sync.WaitGroup
     for i:=0; i<disp.max_workers; i++{
-        worker := NewWorker(disp.queues)
+        worker := NewWorker(disp.queues, i+1)
         worker_id := worker.String()
-        fmt.Println(worker_id)
         worker_ids_channel <- worker_id
-        fmt.Println(len(worker_ids_channel))
 
         wg.Add(1)
         go worker.Startup(disp, &wg)
@@ -50,10 +48,8 @@ func (disp *Dispatcher) Dispatch(wg *sync.WaitGroup){
         case worker_id := <-worker_ids_channel:
             go func(worker_id string){
               for {
-                fmt.Printf("work id: %s\n", worker_id)
                 job := ReserveJob(disp.resq, disp.queues, worker_id)
                 if job != nil {
-                  fmt.Printf("job: %s\n", job.String())
                   disp.job_channel<-job
                 }
               }

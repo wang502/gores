@@ -6,18 +6,6 @@ import (
     "github.com/wang502/gores/gores"
     "github.com/deckarep/golang-set"
 )
-/*
-type TestItem struct{
-    Name string `json:"Name"`
-    Queue string `json:"Queue"`
-    Args map[string]interface{} `json:"Args"`
-    Enqueue_timestamp int `json:"Enqueue_timestamp"`
-}
-
-func (t *TestItem) string() string{
-    return t.Name
-}
-*/
 
 func job_main(){
     resq := gores.NewResQ()
@@ -126,7 +114,7 @@ func job_main(){
 func worker_main(){
     queues := []interface{}{"TestItem", "Comment"}
     q_set := mapset.NewSetFromSlice(queues)
-    worker := gores.NewWorker(q_set)
+    worker := gores.NewWorker(q_set, 1)
 
     // test worker id
     worker_id := worker.String()
@@ -198,7 +186,7 @@ func dispatcher_main(){
         Args: args1,
         Enqueue_timestamp: timestamp1,
       }
-  err := resq.Push("TestItem", item1)
+  err := resq.Enqueue(item1)
   if err != nil{
       fmt.Printf("ResQ Push returned ERROR\n")
   }
@@ -211,5 +199,5 @@ func dispatcher_main(){
 }
 
 func main() {
-    dispatcher_main()
+    gores.Launch()
 }

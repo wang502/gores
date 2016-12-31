@@ -5,6 +5,8 @@ import (
   "fmt"
   "os"
   "errors"
+  "runtime"
+  "path"
   "strconv"
   _ "strings"
   "time"
@@ -50,15 +52,29 @@ func InitPoolFromString(server string, password string) *redis.Pool {
 }
 
 func NewResQ() *ResQ {
-    pool := InitPool()
+    var pool *redis.Pool
+    var host string
+
+    config, err := InitConfig()
+    if err != nil {
+        fmt.Printf("ERROR Initializing Config && %s\n", err)
+        return nil
+    }
+    if len(config.REDISURL) != 0 && len(config.REDIS_PW) != 0 {
+        pool = InitPoolFromString(config.REDISURL, config.REDIS_PW)
+        host = config.REDISURL
+    } else {
+        pool = InitPool()
+        host = os.Getenv("REDISURL")
+    }
     if pool == nil {
-        fmt.Printf("InitPool() Error\n")
+        fmt.Printf("ERROR Initializing Redis Pool\n")
         return nil
     }
     return &ResQ{
               pool: pool,
               _watched_queues: mapset.NewSet(),
-              Host: os.Getenv("REDISURL"),
+              Host: host,
             }
 }
 
@@ -123,7 +139,7 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
         queues_slice[i] = fmt.Sprintf(QUEUE_PREFIX, elem)
         i += 1
     }
-    r_args := append(queues_slice, BPOP_BLOCK_TIME)
+    r_args := append(queues_slice, BLPOP_MAX_BLOCK_TIME)
     data, err := conn.Do("BLPOP", r_args...) // block time: 1
 
     if data == nil || err != nil {
@@ -352,4 +368,53 @@ func (stat *Stat) Clear() int{
       return 0
     }
     return 1
+}
+
+/* -------------------------------------------------------------------------- */
+
+type Config struct {
+    REDISURL string
+    REDIS_PW string
+    BLPOP_MAX_BLOCK_TIME int
+    MAX_WORKERS int
+    Queues []string
+}
+
+func InitConfig() (*Config, error) {
+    config := Config{}
+
+    _, filename, _, _ := runtime.Caller(0)
+    config_file, err := os.Open(path.Dir(filename) + "/config.json")
+    if err != nil {
+        return &config, err
+    }
+
+    decoder := json.NewDecoder(config_file)
+    err = decoder.Decode(&config)
+    if err != nil {
+        return &config, errors.New("ERROR decode config.json")
+    }
+    return &config, nil
+}
+
+/* -------------------------------------------------------------------------- */
+
+func Launch() {
+    config, err := InitConfig()
+    fmt.Println(config.Queues)
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    InitRegistry()
+    resq := NewResQ()
+
+    in_slice := make([]interface{}, len(config.Queues))
+    for i, q := range config.Queues {
+        in_slice[i] = q
+    }
+    queues_set := mapset.NewSetFromSlice(in_slice)
+
+    dispatcher := NewDispatcher(resq, config.MAX_WORKERS, queues_set)
+    dispatcher.Run()
 }
