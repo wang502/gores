@@ -174,30 +174,36 @@ func resq_main() {
 }
 
 func dispatcher_main(){
-  gores.InitRegistry()
-  resq := gores.NewResQ()
+    gores.InitRegistry()
+    resq := gores.NewResQ()
 
-  args1 := make(map[string]interface{})
-  args1["id"] = 1
-  timestamp1 := time.Now().Unix()
-  item1 := gores.TestItem{
+    args1 := make(map[string]interface{})
+    args1["id"] = 1
+    timestamp1 := time.Now().Unix()
+    item1 := gores.TestItem{
         Name: "TestItem",
         Queue: "TestItem",
         Args: args1,
         Enqueue_timestamp: timestamp1,
       }
-  err := resq.Enqueue(item1)
-  if err != nil{
-      fmt.Printf("ResQ Push returned ERROR\n")
-  }
+    err := resq.Enqueue(item1)
+    if err != nil{
+        fmt.Printf("ResQ Push returned ERROR\n")
+    }
 
-  queues := []interface{}{"TestItem", "TestItem1"}
-  queues_set := mapset.NewSetFromSlice(queues)
+    queues := []interface{}{"TestItem", "TestItem1"}
+    queues_set := mapset.NewSetFromSlice(queues)
 
-  dispatcher := gores.NewDispatcher(resq, 2, queues_set)
-  dispatcher.Run()
+    dispatcher := gores.NewDispatcher(resq, 2, queues_set)
+    dispatcher.Run()
+}
+
+func scheduler_main(){
+    scheduler := gores.NewScheduler()
+    scheduler.Run()
 }
 
 func main() {
-    gores.Launch()
+    // gores.Launch()
+    scheduler_main()
 }

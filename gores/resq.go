@@ -201,12 +201,24 @@ func (resq *ResQ) Enqueue(item interface{}) error{
     hasQueue, _ := reflections.HasField(item, "Queue")
     hasArgs, _ := reflections.HasField(item, "Args")
     if !hasQueue || !hasArgs {
-        return errors.New("unable to enqueue job with struct")
+        return errors.New("unable to enqueue Job without 'Queue' and 'Args' attributes")
     } else {
         queue, _ := reflections.GetField(item, "Queue")
         err := resq.Push(queue.(string), item)
         return err
     }
+}
+
+func (resq *ResQ) EnqueueDelayedItem(item map[string]interface{}) error {
+    queue, ok1 := item["Queue"]
+    _, ok2 := item["Args"]
+    var err error
+    if !ok1 || !ok2 {
+        err = errors.New("unable to enqueue delayed Job without 'Queue' and 'Args' attributes")
+    } else  {
+        err = resq.Push(queue.(string), item)
+    }
+    return err
 }
 
 func (resq *ResQ) Queues() []string{
