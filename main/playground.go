@@ -15,22 +15,22 @@ func job_main(){
     timestamp1 := time.Now().Unix()
     item1 := gores.TestItem{
             Name: "TestItem",
-            Queue: "TestItem",
+            Queue: "TestJob",
             Args: args1,
             Enqueue_timestamp: timestamp1,
           }
-    err := resq.Push("TestItem", item1)
+    err := resq.Push("TestJob", item1)
     if err != nil{
         fmt.Printf("ResQ Push returned ERROR\n")
     }
 
-    ret := resq.Pop("TestItem")
+    ret := resq.Pop("TestJob")
     fmt.Println(ret)
     if val, _ := ret["Name"]; val != "ResQ" {
         fmt.Printf("ResQ Pop Value ERROR\n")
     }
 
-    ret2 := resq.Pop("TestItem")
+    ret2 := resq.Pop("TestJob")
     fmt.Println(ret2)
     fmt.Println(ret2 == nil)
 
@@ -40,7 +40,7 @@ func job_main(){
     timestamp2 := time.Now().Unix()
     item2 := gores.TestItem{
             Name: "TestItem",
-            Queue: "TestItem",
+            Queue: "TestJob",
             Args: args2,
             Enqueue_timestamp: timestamp2,
           }
@@ -67,7 +67,7 @@ func job_main(){
     fmt.Println(now)
     err = resq.Enqueue_at(now, gores.TestItem{
                                   Name: "TestItem",
-                                  Queue: "TestItem",
+                                  Queue: "TestJob",
                                   Args: args2,
                                   Enqueue_timestamp: now,
                           })
@@ -82,29 +82,10 @@ func job_main(){
     next_item := resq.NextItemForTimestamp(now)
     fmt.Println(next_item)
 
-    /* test Stat*/
-    /*
-    stat := gores.NewStat("TestItem", resq)
-    i := stat.Get()
-    fmt.Printf("stat's value: %d\n", i)
-
-    ok := stat.Incr()
-    fmt.Println(ok)
-    fmt.Printf("stat's value: %d\n", stat.Get())
-
-    ok = stat.Decr()
-    fmt.Println(ok)
-    fmt.Printf("stat's value %d\n", stat.Get())
-
-    ok = stat.Clear()
-    fmt.Println(ok)
-    fmt.Printf("stat's value %d\n", stat.Get())
-    */
-
     /* Test job & registry */
     gores.InitRegistry()
     fmt.Println("Perform Job: ")
-    job := gores.NewJob("TestItem", ret, resq, "TestWorker")
+    job := gores.NewJob("TestJob", ret, resq, "TestWorker")
     err = job.Perform()
     if err != nil {
         fmt.Println("Error Performing Job")
@@ -112,7 +93,7 @@ func job_main(){
 }
 
 func worker_main(){
-    queues := []interface{}{"TestItem", "Comment"}
+    queues := []interface{}{"TestItem", "TestJob"}
     q_set := mapset.NewSetFromSlice(queues)
     worker := gores.NewWorker(q_set, 1)
 
@@ -156,16 +137,16 @@ func resq_main() {
     timestamp1 := time.Now().Unix()
     item1 := gores.TestItem{
           Name: "TestItem1",
-          Queue: "TestItem1",
+          Queue: "TestResq",
           Args: args1,
           Enqueue_timestamp: timestamp1,
         }
-    err := resq.Push("TestItem1", item1)
+    err := resq.Push("TestResq", item1)
     if err != nil{
         fmt.Printf("ResQ Push returned ERROR\n")
     }
 
-    queues := []interface{}{"TestItem", "TestItem1"}
+    queues := []interface{}{"TestResq", "TestJob"}
     queues_set := mapset.NewSetFromSlice(queues)
     queue, ret := resq.BlockPop(queues_set)
     fmt.Println(queue)
@@ -182,7 +163,7 @@ func dispatcher_main(){
     timestamp1 := time.Now().Unix()
     item1 := gores.TestItem{
         Name: "TestItem",
-        Queue: "TestItem",
+        Queue: "TestDispatcher",
         Args: args1,
         Enqueue_timestamp: timestamp1,
       }
@@ -191,7 +172,7 @@ func dispatcher_main(){
         fmt.Printf("ResQ Push returned ERROR\n")
     }
 
-    queues := []interface{}{"TestItem", "TestItem1"}
+    queues := []interface{}{"TestJob", "TestDispatcher"}
     queues_set := mapset.NewSetFromSlice(queues)
 
     dispatcher := gores.NewDispatcher(resq, 2, queues_set)
@@ -206,4 +187,5 @@ func scheduler_main(){
 func main() {
     gores.Launch()
     // scheduler_main()
+    // job_main()
 }

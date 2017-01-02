@@ -5,9 +5,7 @@ import (
   "fmt"
   "os"
   "errors"
-  "runtime"
   "log"
-  "path"
   "strconv"
   _ "strings"
   "time"
@@ -339,83 +337,6 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 func (resq *ResQ) CurrentTime() int64 {
     timestamp := time.Now().Unix()
     return timestamp
-}
-
-/* -------------------------------------------------------------------------- */
-
-type Stat struct{
-    Name string
-    Key string
-    Resq *ResQ
-}
-
-func NewStat(name string, resq *ResQ) *Stat {
-    return &Stat{
-              Name: name,
-              Key: fmt.Sprintf(STAT_PREFIX, name),
-              Resq: resq,
-          }
-}
-
-func (stat *Stat) Get() int64 {
-    conn := stat.Resq.pool.Get()
-    data, err := conn.Do("GET", stat.Key)
-    if err != nil || data == nil{
-      return 0
-    }
-    res, _ := strconv.Atoi(string(data.([]byte)))
-    return int64(res)
-}
-
-func (stat *Stat) Incr() int{
-    _, err:= stat.Resq.pool.Get().Do("INCR", stat.Key)
-    if err != nil{
-        return 0
-    }
-    return 1
-}
-
-func (stat *Stat) Decr() int {
-    _, err:= stat.Resq.pool.Get().Do("DECR", stat.Key)
-    if err != nil{
-        return 0
-    }
-    return 1
-}
-
-func (stat *Stat) Clear() int{
-    _, err:= stat.Resq.pool.Get().Do("DEL", stat.Key)
-    if err != nil{
-      return 0
-    }
-    return 1
-}
-
-/* -------------------------------------------------------------------------- */
-
-type Config struct {
-    REDISURL string
-    REDIS_PW string
-    BLPOP_MAX_BLOCK_TIME int
-    MAX_WORKERS int
-    Queues []string
-}
-
-func InitConfig() (*Config, error) {
-    config := Config{}
-
-    _, filename, _, _ := runtime.Caller(0)
-    config_file, err := os.Open(path.Dir(filename) + "/config.json")
-    if err != nil {
-        return &config, err
-    }
-
-    decoder := json.NewDecoder(config_file)
-    err = decoder.Decode(&config)
-    if err != nil {
-        return &config, errors.New("ERROR decode config.json")
-    }
-    return &config, nil
 }
 
 /* -------------------------------------------------------------------------- */

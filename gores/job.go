@@ -26,7 +26,7 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
 }
 
 func (job *Job) String() string {
-    res := fmt.Sprintf("Job{%s} | %s ", job.queue, job.payload["Name"])
+    res := fmt.Sprintf("Job{%s}|%s", job.queue, job.payload["Name"])
     return res
 }
 
@@ -55,8 +55,10 @@ func (job *Job) Perform() error{
         } else {
             metadata["retried"] = false
         }
+        job.Failed()
         // InstanceAfterPerform() deal with metadata
     }
+    job.Processed()
     return err
 }
 
@@ -77,6 +79,15 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
     }
 }
 
+func (job *Job) Failed(){
+    NewStat("failed", job.resq).Incr()
+    NewStat(fmt.Sprintf("failed:%s", job.String()), job.resq).Incr()
+}
+
+func (job *Job) Processed(){
+    NewStat("processed", job.resq).Incr()
+    NewStat(fmt.Sprintf("processed:%s", job.String()), job.resq).Incr()
+}
 
 func ReserveJob(resq *ResQ, queues mapset.Set, worker_id string) *Job {
     queue, payload := resq.BlockPop(queues)
