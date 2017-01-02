@@ -11,7 +11,7 @@ import (
 var (
     queues = []interface{}{"TestItem", "Comment"}
     q_set = mapset.NewSetFromSlice(queues)
-    worker = gores.NewWorker(q_set)
+    worker = gores.NewWorker(q_set, 1)
 )
 
 func TestNewWorker(t *testing.T){
@@ -27,8 +27,9 @@ func TestWorkerString(t *testing.T){
     if strings.Compare(id_tokens[0], hostname) != 0 {
         t.Errorf("Worker id contains incorrect hostname")
     }
-    if strings.Compare(id_tokens[2], "Comment,TestItem") != 0 && strings.Compare(id_tokens[2], "TestItem,Comment") != 0 {
-        t.Errorf("Worker if contains incorrect queue name")
+    // host:pid:goroutine_id:queue1,queue2
+    if strings.Compare(id_tokens[3], "Comment,TestItem") != 0 && strings.Compare(id_tokens[3], "TestItem,Comment") != 0 {
+        t.Errorf("Worker contains incorrect queue name")
     }
 }
 
@@ -56,7 +57,7 @@ func MakeTestWorkers(num int) []*gores.Worker {
     test_queue_set := mapset.NewSetFromSlice(test_queue)
     ret := make([]*gores.Worker, num)
     for i:=0; i<num; i++ {
-        ret[i] = gores.NewWorker(test_queue_set)
+        ret[i] = gores.NewWorker(test_queue_set, i+1)
     }
     return ret
 }

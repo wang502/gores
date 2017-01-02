@@ -204,6 +204,6 @@ func scheduler_main(){
 }
 
 func main() {
-    // gores.Launch()
-    scheduler_main()
+    gores.Launch()
+    // scheduler_main()
 }

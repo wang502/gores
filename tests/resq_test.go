@@ -5,10 +5,17 @@ import (
     "github.com/wang502/gores/gores"
 )
 
-var (
-    //resq declared in job_test.go
-    //item declared in job_test.go
-    stat = gores.NewStat("TestItem", resq)
+var (resq = gores.NewResQ()
+     args = map[string]interface{}{"id": 1}
+     item = gores.TestItem{
+              Name: "TestItem",
+              Queue: "TestItem",
+              Args: args,
+              Enqueue_timestamp: resq.CurrentTime(),
+              Retry: true,
+              Retry_every: 10,
+            }
+      stat = gores.NewStat("TestItem", resq)
 )
 
 func TestResQPushPop(t *testing.T){

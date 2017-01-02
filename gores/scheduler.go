@@ -11,11 +11,18 @@ type Scheduler struct {
 }
 
 func NewScheduler() *Scheduler {
-    return &Scheduler{
-              resq: NewResQ(),
+    var sche *Scheduler
+    resq := NewResQ()
+    if resq == nil {
+        log.Fatalf("ERROR Initializing ResQ(), cannot initialize Scheduler")
+        return nil
+    }
+    sche = &Scheduler{
+              resq: resq,
               timestamp_chan: make(chan int64, 1),
               shutdown_chan: make(chan bool, 1),
            }
+    return sche
 }
 
 func (sche *Scheduler) ScheduleShutdown(){

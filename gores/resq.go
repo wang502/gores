@@ -6,6 +6,7 @@ import (
   "os"
   "errors"
   "runtime"
+  "log"
   "path"
   "strconv"
   _ "strings"
@@ -57,7 +58,7 @@ func NewResQ() *ResQ {
 
     config, err := InitConfig()
     if err != nil {
-        fmt.Printf("ERROR Initializing Config && %s\n", err)
+        log.Printf("ERROR Initializing Config && %s\n", err)
         return nil
     }
     if len(config.REDISURL) != 0 && len(config.REDIS_PW) != 0 {
@@ -68,7 +69,7 @@ func NewResQ() *ResQ {
         host = os.Getenv("REDISURL")
     }
     if pool == nil {
-        fmt.Printf("ERROR Initializing Redis Pool\n")
+        log.Printf("ERROR Initializing Redis Pool\n")
         return nil
     }
     return &ResQ{
@@ -81,7 +82,7 @@ func NewResQ() *ResQ {
 func NewResQFromString(server string, password string) *ResQ {
   pool := InitPoolFromString(server, password)
   if pool == nil {
-      fmt.Printf("InitPool() Error\n")
+      log.Printf("InitPool() Error\n")
       return nil
   }
   return &ResQ{
@@ -177,6 +178,15 @@ func (resq *ResQ) Size(queue string) int64 {
     return size.(int64)
 }
 
+func (resq *ResQ) SizeOfQueue(key string) int64{
+    conn := resq.pool.Get()
+    size, err := conn.Do("LLEN", key)
+    if size == nil || err != nil {
+        return 0
+    }
+    return size.(int64)
+}
+
 func (resq *ResQ) watch_queue(queue string) error{
     if resq._watched_queues.Contains(queue){
         return nil
@@ -221,6 +231,28 @@ func (resq *ResQ) EnqueueDelayedItem(item map[string]interface{}) error {
     return err
 }
 
+func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
+    err := resq.DelayedPush(datetime, item)
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+func (resq *ResQ) DelayedPush(datetime int64, item interface{}) error {
+    conn := resq.pool.Get()
+    key := strconv.FormatInt(datetime, 10)
+    _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))
+    if err != nil {
+        return errors.New("Invalid RPUSH response")
+    }
+    _, err = conn.Do("ZADD", WATCHED_DELAYED_QUEUE_SCHEDULE, datetime, datetime)
+    if err != nil {
+        err = errors.New("Invalid ZADD response")
+    }
+    return err
+}
+
 func (resq *ResQ) Queues() []string{
     conn := resq.pool.Get()
     data, _ := conn.Do("SMEMBERS", WATCHED_QUEUES)
@@ -244,7 +276,6 @@ func (resq *ResQ) Workers() []string {
     return workers
 }
 
-
 func (resq *ResQ) Info() map[string]interface{} {
     var pending int64 = 0
     for _, q := range resq.Queues() {
@@ -259,28 +290,6 @@ func (resq *ResQ) Info() map[string]interface{} {
     info["failed"] = NewStat("falied", resq).Get()
     info["host"] = resq.Host
     return info
-}
-
-func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
-    err := resq.DelayedPush(datetime, item)
-    if err != nil {
-        return err
-    }
-    return nil
-}
-
-func (resq *ResQ) DelayedPush(datetime int64, item interface{}) error {
-    conn := resq.pool.Get()
-    key := strconv.FormatInt(datetime, 10)
-    _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))
-    if err != nil {
-        return errors.New("Invalid RPUSH response")
-    }
-    _, err = conn.Do("ZADD", WATCHED_DELAYED_QUEUE_SCHEDULE, datetime, datetime)
-    if err != nil {
-        err = errors.New("Invalid ZADD response")
-    }
-    return err
 }
 
 func (resq *ResQ) NextDelayedTimestamp() int64 {
@@ -414,7 +423,7 @@ func InitConfig() (*Config, error) {
 func Launch() {
     config, err := InitConfig()
     if err != nil {
-        fmt.Println(err)
+        log.Println(err)
         return
     }
     InitRegistry()
