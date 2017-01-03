@@ -11,7 +11,9 @@ import (
 var (
     queues = []interface{}{"TestItem", "Comment"}
     q_set = mapset.NewSetFromSlice(queues)
-    worker = gores.NewWorker(q_set, 1)
+
+    // config declared in resq_test.go
+    worker = gores.NewWorker(config, q_set, 1)
 )
 
 func TestNewWorker(t *testing.T){
@@ -57,7 +59,7 @@ func MakeTestWorkers(num int) []*gores.Worker {
     test_queue_set := mapset.NewSetFromSlice(test_queue)
     ret := make([]*gores.Worker, num)
     for i:=0; i<num; i++ {
-        ret[i] = gores.NewWorker(test_queue_set, i+1)
+        ret[i] = gores.NewWorker(config, test_queue_set, i+1)
     }
     return ret
 }

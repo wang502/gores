@@ -25,8 +25,8 @@ type Worker struct{
     started int64
 }
 
-func NewWorker(queues mapset.Set, goroutine_id int) *Worker {
-    resq := NewResQ()
+func NewWorker(config *Config, queues mapset.Set, goroutine_id int) *Worker {
+    resq := NewResQ(config)
     if resq == nil {
         return nil
     }
@@ -44,8 +44,8 @@ func NewWorker(queues mapset.Set, goroutine_id int) *Worker {
            }
 }
 
-func NewWorkerFromString(server string, password string, queues mapset.Set, goroutine_id int) *Worker{
-    resq := NewResQFromString(server, password)
+func NewWorkerFromString(config *Config, server string, password string, queues mapset.Set, goroutine_id int) *Worker{
+    resq := NewResQFromString(config, server, password)
     if resq == nil {
         return nil
     }
@@ -154,7 +154,8 @@ func (worker *Worker) Find(worker_id string, resq *ResQ) *Worker {
         }
         q_set := mapset.NewSetFromSlice(in_slice)
 
-        new_worker =  NewWorker(q_set, goroutine_id)
+        config := worker.resq.config
+        new_worker =  NewWorker(config, q_set, goroutine_id)
         new_worker.id = worker_id
     }
     return new_worker

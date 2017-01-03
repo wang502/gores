@@ -3,8 +3,6 @@ package gores
 import (
     "errors"
     "os"
-    "path"
-    "runtime"
     "encoding/json"
 )
 
@@ -16,11 +14,10 @@ type Config struct {
     Queues []string
 }
 
-func InitConfig() (*Config, error) {
+func InitConfig(confPath string) (*Config, error) {
     config := Config{}
 
-    _, filename, _, _ := runtime.Caller(0)
-    config_file, err := os.Open(path.Dir(filename) + "/config.json")
+    config_file, err := os.Open(confPath)
     if err != nil {
         return &config, err
     }

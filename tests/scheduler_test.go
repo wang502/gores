@@ -8,8 +8,15 @@ import (
 )
 
 var (
-    basic_sche = gores.NewScheduler()
-    resq = gores.NewResQ()
+  config = &gores.Config{
+             REDISURL: "",
+             REDIS_PW: "",
+             BLPOP_MAX_BLOCK_TIME: 1,
+             MAX_WORKERS: 2,
+             Queues: []string{"TestJob", "TestScheduler"},
+           }
+    basic_sche = gores.NewScheduler(config)
+    resq = gores.NewResQ(config)
     args = map[string]interface{}{"id": 1}
     item = gores.TestItem{
              Name: "TestItem",
@@ -22,7 +29,7 @@ var (
 )
 
 func TestNewScheduler(t *testing.T){
-    sche := gores.NewScheduler()
+    sche := gores.NewScheduler(config)
     if sche == nil {
         t.Errorf("ERROR initialize Scheduler")
     }

@@ -19,6 +19,7 @@ type ResQ struct {
   pool *redis.Pool
   _watched_queues mapset.Set
   Host string
+  config *Config
 }
 
 func MakeRedisPool(server string, password string) *redis.Pool {
@@ -50,15 +51,10 @@ func InitPoolFromString(server string, password string) *redis.Pool {
     return MakeRedisPool(server, password)
 }
 
-func NewResQ() *ResQ {
+func NewResQ(config *Config) *ResQ {
     var pool *redis.Pool
     var host string
 
-    config, err := InitConfig()
-    if err != nil {
-        log.Printf("ERROR Initializing Config && %s\n", err)
-        return nil
-    }
     if len(config.REDISURL) != 0 && len(config.REDIS_PW) != 0 {
         pool = InitPoolFromString(config.REDISURL, config.REDIS_PW)
         host = config.REDISURL
@@ -74,10 +70,11 @@ func NewResQ() *ResQ {
               pool: pool,
               _watched_queues: mapset.NewSet(),
               Host: host,
+              config: config,
             }
 }
 
-func NewResQFromString(server string, password string) *ResQ {
+func NewResQFromString(config *Config, server string, password string) *ResQ {
   pool := InitPoolFromString(server, password)
   if pool == nil {
       log.Printf("InitPool() Error\n")
@@ -87,6 +84,7 @@ func NewResQFromString(server string, password string) *ResQ {
             pool: pool,
             _watched_queues: mapset.NewSet(),
             Host: os.Getenv("REDISURL"),
+            config: config,
           }
 }
 
@@ -341,14 +339,14 @@ func (resq *ResQ) CurrentTime() int64 {
 
 /* -------------------------------------------------------------------------- */
 
-func Launch() {
-    config, err := InitConfig()
-    if err != nil {
-        log.Println(err)
+func Launch(config *Config) {
+    InitRegistry()
+
+    resq := NewResQ(config)
+    if resq == nil {
+        log.Fatalf("ERROR initialize ResQ")
         return
     }
-    InitRegistry()
-    resq := NewResQ()
 
     in_slice := make([]interface{}, len(config.Queues))
     for i, q := range config.Queues {

@@ -10,9 +10,9 @@ type Scheduler struct {
     shutdown_chan chan bool
 }
 
-func NewScheduler() *Scheduler {
+func NewScheduler(config *Config) *Scheduler {
     var sche *Scheduler
-    resq := NewResQ()
+    resq := NewResQ(config)
     if resq == nil {
         log.Fatalf("ERROR Initializing ResQ(), cannot initialize Scheduler")
         return nil

@@ -21,6 +21,8 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
                 resq: resq,
                 worker: worker,
                 // Redis LPOP reply json, timestamp will be parsed to be float64
+                // Any numbers from unmarshalled JSON will be float64 by default
+	              // So we first need to do a type conversion to float64
                 enqueue_timestamp: payload["Enqueue_timestamp"].(float64),
             }
 }

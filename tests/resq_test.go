@@ -5,7 +5,15 @@ import (
     "github.com/wang502/gores/gores"
 )
 
-var (resq = gores.NewResQ()
+var (
+     config = &gores.Config{
+                REDISURL: "",
+                REDIS_PW: "",
+                BLPOP_MAX_BLOCK_TIME: 1,
+                MAX_WORKERS: 2,
+                Queues: []string{"TestJob", "TestItem"},
+              }
+     resq = gores.NewResQ(config)
      args = map[string]interface{}{"id": 1}
      item = gores.TestItem{
               Name: "TestItem",
