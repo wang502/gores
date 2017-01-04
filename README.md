@@ -26,15 +26,31 @@ Add a config.json in your project folder
 
 ### Enqueue item to message broker
 ```go
-import "github.com/wang502/gores/gores"
-import log
+// produce.go
+
+import (
+    "github.com/wang502/gores/gores"
+    "log"
+    "flag"
+)
+
+configPath := flag.String("c", "config.json", "path to configuration file")
+flag.Parse()
+config, err := gores.InitConfig(*configPath)
 
 resq := gores.NewResQ(config)
+args := map[string]interface{}{
+              "Length": 10,
+              "Width": 10,
+        }
 item := map[string]interface{}{
-	"Name": "Rectangle",
-	"Queue": "TestJob",
-	"Args": args,
-	"Enqueue_timestamp": time.Now().Unix(),
+  "Name": "Rectangle",
+  "Queue": "TestJob",
+  "Args": map[string]interface{}{
+                "Length": 10,
+                "Width": 10,
+          },
+  "Enqueue_timestamp": time.Now().Unix(),
 }
 
 err = resq.Enqueue(item)
@@ -43,7 +59,52 @@ if err != nil {
 }
 ```
 
-### Fire up workers
+```
+go run produce.go ./config.json
 ```
 
+### Define tasks
+```go
+// task for item with 'Name' = 'Rectangle'
+func CalculateArea(item map[string]interface{}) error {
+    var err error
+
+    length := item["Length"]
+    width := item["Width"]
+    if length == nil || width == nil {
+        err = errors.New("Map has no required attributes")
+        return err
+    }
+    fmt.Println("The area is %d", int(length.(float64)) * int(width.(float64)))
+    return err
+}
+```
+
+### Worker that execute tasks
+```go
+// consume.go
+
+import (
+    "github.com/wang502/gores/gores"
+    "log"
+    "flag"
+)
+
+flag.Parse()
+config, err := gores.InitConfig(*configPath)
+
+tasks := map[string]interface{}{
+              "Item": tasks.PrintItem,
+              "Rectangle": tasks.CalculateArea,
+         }
+gores.Launch(config, &tasks)
+```
+
+```
+$ go run consume.go ./config.json
+```
+
+### Output
+```
+The area is 100
 ```
