@@ -4,6 +4,7 @@ import (
     "flag"
     "log"
     "github.com/wang502/gores/gores"
+    "github.com/wang502/gores/examples/tasks"
 )
 
 var (
@@ -18,5 +19,9 @@ func main(){
         log.Fatalf("Cannot read config file")
     }
 
-    gores.Launch(config)
+    tasks := map[string]interface{}{
+                  "Item": tasks.PrintItem,
+                  "Rectangle": tasks.CalculateArea,
+             }
+    gores.Launch(config, &tasks)
 }

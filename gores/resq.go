@@ -11,7 +11,7 @@ import (
   "time"
   "github.com/garyburd/redigo/redis"
   "github.com/deckarep/golang-set"
-  "gopkg.in/oleiade/reflections.v1"
+  _ "gopkg.in/oleiade/reflections.v1"
 )
 // redis-cli -h host -p port -a password
 
@@ -86,6 +86,23 @@ func NewResQFromString(config *Config, server string, password string) *ResQ {
             Host: os.Getenv("REDISURL"),
             config: config,
           }
+}
+
+func (resq *ResQ) Enqueue(item map[string]interface{}) error {
+    /*
+      Enqueue a job into a specific queue. Make sure the map you are
+      passing has keys
+      **Queue**, **Enqueue_timestamp**, **Args**
+    */
+    queue, ok1 := item["Queue"]
+    _, ok2 := item["Args"]
+    var err error
+    if !ok1 || !ok2 {
+        err = errors.New("unable to enqueue delayed Job without 'Queue' and 'Args' attributes")
+    } else  {
+        err = resq.Push(queue.(string), item)
+    }
+    return err
 }
 
 func (resq *ResQ) Push(queue string, item interface{}) error{
@@ -194,37 +211,6 @@ func (resq *ResQ) watch_queue(queue string) error{
         }
         return err
     }
-}
-
-func (resq *ResQ) Enqueue(item interface{}) error{
-    /*
-    Enqueue a job into a specific queue. Make sure the struct you are
-    passing has
-    **Queue**, **Enqueue_timestamp**, **Args** attribute
-    and a
-    **Perform** method on it.
-    */
-    hasQueue, _ := reflections.HasField(item, "Queue")
-    hasArgs, _ := reflections.HasField(item, "Args")
-    if !hasQueue || !hasArgs {
-        return errors.New("unable to enqueue Job without 'Queue' and 'Args' attributes")
-    } else {
-        queue, _ := reflections.GetField(item, "Queue")
-        err := resq.Push(queue.(string), item)
-        return err
-    }
-}
-
-func (resq *ResQ) EnqueueDelayedItem(item map[string]interface{}) error {
-    queue, ok1 := item["Queue"]
-    _, ok2 := item["Args"]
-    var err error
-    if !ok1 || !ok2 {
-        err = errors.New("unable to enqueue delayed Job without 'Queue' and 'Args' attributes")
-    } else  {
-        err = resq.Push(queue.(string), item)
-    }
-    return err
 }
 
 func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
@@ -339,9 +325,7 @@ func (resq *ResQ) CurrentTime() int64 {
 
 /* -------------------------------------------------------------------------- */
 
-func Launch(config *Config) {
-    InitRegistry()
-
+func Launch(config *Config, tasks *map[string]interface{}) {
     resq := NewResQ(config)
     if resq == nil {
         log.Fatalf("ERROR initialize ResQ")
@@ -355,5 +339,5 @@ func Launch(config *Config) {
     queues_set := mapset.NewSetFromSlice(in_slice)
 
     dispatcher := NewDispatcher(resq, config.MAX_WORKERS, queues_set)
-    dispatcher.Run()
+    dispatcher.Run(tasks)
 }

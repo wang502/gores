@@ -1,9 +1,18 @@
 package tests
 
 import (
+    "fmt"
     "testing"
     "github.com/wang502/gores/gores"
 )
+
+func PrintItem(item map[string]interface{}) error {
+    var err error
+    for k, v := range item {
+        fmt.Printf("key: %s, value: %s\n", k, v)
+    }
+    return err
+}
 
 var (
      config = &gores.Config{
@@ -15,13 +24,16 @@ var (
               }
      resq = gores.NewResQ(config)
      args = map[string]interface{}{"id": 1}
-     item = gores.TestItem{
-              Name: "TestItem",
-              Queue: "TestItem",
-              Args: args,
-              Enqueue_timestamp: resq.CurrentTime(),
-              Retry: true,
-              Retry_every: 10,
+     item = map[string]interface{}{
+              "Name": "TestItem",
+              "Queue": "TestItem",
+              "Args": args,
+              "Enqueue_timestamp": resq.CurrentTime(),
+              "Retry": true,
+              "Retry_every": 10,
+            }
+      tasks = map[string]interface{}{
+                "TestItem": PrintItem,
             }
       stat = gores.NewStat("TestItem", resq)
 )

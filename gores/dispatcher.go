@@ -27,17 +27,17 @@ func NewDispatcher(resq *ResQ, max_workers int, queues mapset.Set) *Dispatcher{
             }
 }
 
-func (disp *Dispatcher) Run(){
+func (disp *Dispatcher) Run(tasks *map[string]interface{}){
     var wg sync.WaitGroup
     config := disp.resq.config
-    
+
     for i:=0; i<disp.max_workers; i++{
         worker := NewWorker(config, disp.queues, i+1)
         worker_id := worker.String()
         worker_ids_channel <- worker_id
 
         wg.Add(1)
-        go worker.Startup(disp, &wg)
+        go worker.Startup(disp, &wg, tasks)
     }
     wg.Add(1)
     go disp.Dispatch(&wg)

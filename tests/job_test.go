@@ -24,7 +24,7 @@ func TestPerform(t *testing.T) {
   }
   ret := resq.Pop("TestItem")
   job := gores.NewJob("TestItem", ret, resq, "TestWorker")
-  err = job.Perform()
+  err = job.PerformTask(&tasks)
   if err != nil {
       t.Errorf("Job Perform() ERROR")
   }

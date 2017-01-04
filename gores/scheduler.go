@@ -51,7 +51,7 @@ func (sche *Scheduler) HandleDelayedItems(){
             item := sche.resq.NextItemForTimestamp(timestamp)
             if item != nil {
                 log.Println(item)
-                err := sche.resq.EnqueueDelayedItem(item)
+                err := sche.resq.Enqueue(item)
                 if err != nil {
                   log.Fatalf("ERROR Enqueue Delayed Item: %s", err)
                 }
