@@ -1,0 +1,17 @@
+language: go
+
+go:
+  - 1.x
+
+services:
+  - redis-server
+env:
+  - REDISURL=127.0.0.1
+
+before_script:
+  - cd tests
+
+script:
+  - go test resq_test.go job_test.go
+  - go test resq_test.go worker_test.go
+  - go test scheduler_test.go

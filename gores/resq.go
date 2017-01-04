@@ -32,7 +32,9 @@ func MakeRedisPool(server string, password string) *redis.Pool {
                   return c, nil
               }
               c.Do("AUTH", os.Getenv("REDIS_PW"))
-              c.Do("SELECT", "gores")
+
+              /* the is needed only if "gores" is configured in Redis's configuration file redis.conf */
+              //c.Do("SELECT", "gores")
               return c, nil
             },
         TestOnBorrow: func(c redis.Conn, t time.Time) error {
@@ -151,7 +153,7 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
         i += 1
     }
     r_args := append(queues_slice, BLPOP_MAX_BLOCK_TIME)
-    data, err := conn.Do("BLPOP", r_args...) 
+    data, err := conn.Do("BLPOP", r_args...)
 
     if data == nil || err != nil {
         return "", decoded

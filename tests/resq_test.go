@@ -16,7 +16,7 @@ func PrintItem(item map[string]interface{}) error {
 
 var (
      config = &gores.Config{
-                REDISURL: "",
+                REDISURL: "127.0.0.1",
                 REDIS_PW: "",
                 BLPOP_MAX_BLOCK_TIME: 1,
                 MAX_WORKERS: 2,

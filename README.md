@@ -2,8 +2,13 @@
 An asynchronous job execution system with Redis as message broker
 
 ## Installation
+Get the package
 ```
 go get github.com/wang502/gores/gores
+```
+Import the package
+```go
+import "github.com/wang502/gores/gores"
 ```
 
 ## Usage
@@ -18,7 +23,7 @@ Add a config.json in your project folder
   "Queues": ["queue1", "queue2"]
 }
 ```
-- REDISURL: specifies the Redis server address
+- REDISURL: specifies the Redis server address. If you run in a local Redis, the dafault host is 127.0.0.1
 - REDIS_PW: specifies Redis password
 - BLPOP_MAX_BLOCK_TIME: time to block when calling BLPOP command in Redis
 - MAX_WORKERS: maximum number of concurrent worker, each worker is a goroutine
@@ -28,21 +33,11 @@ Add a config.json in your project folder
 ```go
 // produce.go
 
-import (
-    "github.com/wang502/gores/gores"
-    "log"
-    "flag"
-)
-
 configPath := flag.String("c", "config.json", "path to configuration file")
 flag.Parse()
 config, err := gores.InitConfig(*configPath)
 
 resq := gores.NewResQ(config)
-args := map[string]interface{}{
-              "Length": 10,
-              "Width": 10,
-        }
 item := map[string]interface{}{
   "Name": "Rectangle",
   "Queue": "TestJob",
@@ -65,6 +60,8 @@ go run produce.go ./config.json
 
 ### Define tasks
 ```go
+package tasks
+
 // task for item with 'Name' = 'Rectangle'
 func CalculateArea(item map[string]interface{}) error {
     var err error
@@ -75,7 +72,7 @@ func CalculateArea(item map[string]interface{}) error {
         err = errors.New("Map has no required attributes")
         return err
     }
-    fmt.Println("The area is %d", int(length.(float64)) * int(width.(float64)))
+    fmt.Printf("The area is %d\n", int(length.(float64)) * int(width.(float64)))
     return err
 }
 ```
@@ -83,12 +80,6 @@ func CalculateArea(item map[string]interface{}) error {
 ### Worker that execute tasks
 ```go
 // consume.go
-
-import (
-    "github.com/wang502/gores/gores"
-    "log"
-    "flag"
-)
 
 flag.Parse()
 config, err := gores.InitConfig(*configPath)

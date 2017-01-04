@@ -9,7 +9,7 @@ import (
 
 var (
   config = &gores.Config{
-             REDISURL: "",
+             REDISURL: "127.0.0.1",
              REDIS_PW: "",
              BLPOP_MAX_BLOCK_TIME: 1,
              MAX_WORKERS: 2,
@@ -17,14 +17,15 @@ var (
            }
     basic_sche = gores.NewScheduler(config)
     resq = gores.NewResQ(config)
-    args = map[string]interface{}{"id": 1}
-    item = gores.TestItem{
-             Name: "TestItem",
-             Queue: "TestScheduler",
-             Args: args,
-             Enqueue_timestamp: resq.CurrentTime(),
-             Retry: true,
-             Retry_every: 10,
+    item = map[string]interface{}{
+             "Name": "TestItem",
+             "Queue": "TestScheduler",
+             "Args": map[string]interface{}{
+                          "id": 1,
+                      },
+             "Enqueue_timestamp": resq.CurrentTime(),
+             "Retry": true,
+             "Retry_every": 10,
            }
 )
 
@@ -48,10 +49,10 @@ func TestHandleDelayedItems(t *testing.T){
         t.Errorf("Scheduler worker did not handle delayed items")
     }
 
-    queue_size := resq.Size(item.Queue)
+    queue_size := resq.Size(item["Queue"].(string))
     if queue_size != 1 {
-        t.Errorf("Scheduler worker did not enqueue delayed item to resq:queue:%s", item.Queue)
+        t.Errorf("Scheduler worker did not enqueue delayed item to resq:queue:%s", item["Queue"].(string))
     }
 
-    resq.Pop(item.Queue)
+    resq.Pop(item["Queue"].(string))
 }
