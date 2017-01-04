@@ -136,9 +136,6 @@ func (resq *ResQ) Pop(queue string) map[string]interface{}{
         return decoded
     }
     decoded = resq.Decode(data)
-    if decoded != nil{
-        decoded["Struct"] = queue
-    }
     return decoded
 }
 
@@ -154,7 +151,7 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
         i += 1
     }
     r_args := append(queues_slice, BLPOP_MAX_BLOCK_TIME)
-    data, err := conn.Do("BLPOP", r_args...) // block time: 1
+    data, err := conn.Do("BLPOP", r_args...) 
 
     if data == nil || err != nil {
         return "", decoded
