@@ -9,7 +9,7 @@ go get github.com/wang502/gores/gores
 ## Usage
 ### Configuration
 Add a config.json in your project folder
-```
+```json
 {
   "REDISURL": "",
   "REDIS_PW": "",
@@ -25,7 +25,7 @@ Add a config.json in your project folder
 - Queues: array of queue names on Redis message broker
 
 ### Enqueue item to message broker
-```
+```go
 import "github.com/wang502/gores/gores"
 import log
 
