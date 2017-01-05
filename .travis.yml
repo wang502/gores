@@ -12,6 +12,7 @@ before_script:
   - cd tests
 
 script:
+  - go get -d -t -v ./...
   - go test resq_test.go job_test.go
   - go test resq_test.go worker_test.go
   - go test scheduler_test.go
