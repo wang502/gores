@@ -1,22 +1,21 @@
-package tests
+package gores
 
 import (
     "fmt"
     "strconv"
     "testing"
-    "github.com/wang502/gores/gores"
 )
 
 var (
-  config = &gores.Config{
+  config = &Config{
              REDISURL: "127.0.0.1:6379",
              REDIS_PW: "",
              BLPOP_MAX_BLOCK_TIME: 1,
              MAX_WORKERS: 2,
              Queues: []string{"TestJob", "TestScheduler"},
            }
-    basic_sche = gores.NewScheduler(config)
-    resq = gores.NewResQ(config)
+    basic_sche = NewScheduler(config)
+    resq = NewResQ(config)
     item = map[string]interface{}{
              "Name": "TestItem",
              "Queue": "TestScheduler",
@@ -30,7 +29,7 @@ var (
 )
 
 func TestNewScheduler(t *testing.T){
-    sche := gores.NewScheduler(config)
+    sche := NewScheduler(config)
     if sche == nil {
         t.Errorf("ERROR initialize Scheduler")
     }
@@ -44,7 +43,7 @@ func TestHandleDelayedItems(t *testing.T){
     }
     basic_sche.Run()
 
-    delayed_queue_size := resq.SizeOfQueue(fmt.Sprintf(gores.DEPLAYED_QUEUE_PREFIX, strconv.FormatInt(1483079527, 10)))
+    delayed_queue_size := resq.SizeOfQueue(fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, strconv.FormatInt(1483079527, 10)))
     if delayed_queue_size != 0 {
         t.Errorf("Scheduler worker did not handle delayed items")
     }

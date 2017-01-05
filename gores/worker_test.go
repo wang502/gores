@@ -1,11 +1,10 @@
-package tests
+package gores
 
 import (
     "os"
     "strings"
     "testing"
     "github.com/deckarep/golang-set"
-    "github.com/wang502/gores/gores"
 )
 
 var (
@@ -13,7 +12,7 @@ var (
     q_set = mapset.NewSetFromSlice(queues)
 
     // config declared in resq_test.go
-    worker = gores.NewWorker(config, q_set, 1)
+    worker = NewWorker(config, q_set, 1)
 )
 
 func TestNewWorker(t *testing.T){
@@ -54,12 +53,12 @@ func TestUnregisterWorker(t *testing.T) {
     }
 }
 
-func MakeTestWorkers(num int) []*gores.Worker {
+func MakeTestWorkers(num int) []*Worker {
     test_queue := []interface{}{"test1", "test2", "test3"}
     test_queue_set := mapset.NewSetFromSlice(test_queue)
-    ret := make([]*gores.Worker, num)
+    ret := make([]*Worker, num)
     for i:=0; i<num; i++ {
-        ret[i] = gores.NewWorker(config, test_queue_set, i+1)
+        ret[i] = NewWorker(config, test_queue_set, i+1)
     }
     return ret
 }

@@ -1,9 +1,8 @@
-package tests
+package gores
 
 import (
     "fmt"
     "testing"
-    "github.com/wang502/gores/gores"
 )
 
 func PrintItem(item map[string]interface{}) error {
@@ -15,14 +14,14 @@ func PrintItem(item map[string]interface{}) error {
 }
 
 var (
-     config = &gores.Config{
+     config = &Config{
                 REDISURL: "127.0.0.1:6379",
-                REDIS_PW: "",
+                REDIS_PW: "mypassword",
                 BLPOP_MAX_BLOCK_TIME: 1,
                 MAX_WORKERS: 2,
                 Queues: []string{"TestJob", "TestItem"},
               }
-     resq = gores.NewResQ(config)
+     resq = NewResQ(config)
      args = map[string]interface{}{"id": 1}
      item = map[string]interface{}{
               "Name": "TestItem",
@@ -35,7 +34,7 @@ var (
       tasks = map[string]interface{}{
                 "TestItem": PrintItem,
             }
-      stat = gores.NewStat("TestItem", resq)
+      stat = NewStat("TestItem", resq)
 )
 
 func TestResQPushPop(t *testing.T){

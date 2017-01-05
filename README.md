@@ -16,8 +16,8 @@ import "github.com/wang502/gores/gores"
 Add a config.json in your project folder
 ```json
 {
-  "REDISURL": "",
-  "REDIS_PW": "",
+  "REDISURL": "127.0.0.1:6379",
+  "REDIS_PW": "mypassword",
   "BLPOP_MAX_BLOCK_TIME" : 1,
   "MAX_WORKERS": 2,
   "Queues": ["queue1", "queue2"]
