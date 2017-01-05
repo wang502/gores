@@ -1,6 +1,5 @@
 # Gores
-[![Build Status]https://travis-ci.com/wang502/gores.svg?token=KeHkjMsksZ2RWDDg6h5k&branch=master](https://travis-ci.org/wang502/gores)
-
+[![Build Status](https://travis-ci.com/wang502/gores.svg?token=KeHkjMsksZ2RWDDg6h5k&branch=master)](https://travis-ci.org/wang502/gores)
 An asynchronous job execution system with Redis as message broker
 
 ## Installation
