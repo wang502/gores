@@ -7,9 +7,10 @@ services:
   - redis-server
 env:
   - REDISURL=127.0.0.1:6379
+  - REDIS_PW=mypassword
 
 before_script:
-  - cd tests
+  - cd gores
 
 script:
   - go test resq.go config.go job.go stat.go worker.go dispatcher.go constants.go resq_test.go job_test.go worker_test.go
