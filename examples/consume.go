@@ -7,11 +7,8 @@ import (
     "github.com/wang502/gores/examples/tasks"
 )
 
-var (
-    configPath = flag.String("c", "config.json", "path to configuration file")
-)
-
 func main(){
+    configPath := flag.String("c", "config.json", "path to configuration file")
     flag.Parse()
 
     config, err := gores.InitConfig(*configPath)

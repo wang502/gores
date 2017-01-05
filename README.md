@@ -23,7 +23,7 @@ Add a config.json in your project folder
   "Queues": ["queue1", "queue2"]
 }
 ```
-- REDISURL: specifies the Redis server address. If you run in a local Redis, the dafault host is 127.0.0.1
+- REDISURL: specifies the Redis server address. If you run in a local Redis, the dafault host is ```127.0.0.1:6379```
 - REDIS_PW: specifies Redis password
 - BLPOP_MAX_BLOCK_TIME: time to block when calling BLPOP command in Redis
 - MAX_WORKERS: maximum number of concurrent worker, each worker is a goroutine
@@ -97,5 +97,5 @@ $ go run consume.go ./config.json
 
 ### Output
 ```
-The area is 100
+The rectangle area is 100
 ```

@@ -16,10 +16,10 @@ import (
 // redis-cli -h host -p port -a password
 
 type ResQ struct {
-  pool *redis.Pool
-  _watched_queues mapset.Set
-  Host string
-  config *Config
+    pool *redis.Pool
+    _watched_queues mapset.Set
+    Host string
+    config *Config
 }
 
 func MakeRedisPool(server string, password string) *redis.Pool {
@@ -27,11 +27,11 @@ func MakeRedisPool(server string, password string) *redis.Pool {
         MaxIdle: 5,
         IdleTimeout: 240 * time.Second,
         Dial: func () (redis.Conn, error) {
-              c, err := redis.Dial("tcp", os.Getenv("REDISURL"))
+              c, err := redis.Dial("tcp", server)
               if err != nil {
                   return c, nil
               }
-              c.Do("AUTH", os.Getenv("REDIS_PW"))
+              c.Do("AUTH", password)
 
               /* the is needed only if "gores" is configured in Redis's configuration file redis.conf */
               //c.Do("SELECT", "gores")
@@ -113,15 +113,10 @@ func (resq *ResQ) Push(queue string, item interface{}) error{
     _, err := conn.Do("RPUSH", fmt.Sprintf(QUEUE_PREFIX, queue), resq.Encode(item))
     if err != nil{
         err = errors.New("Invalid Redis RPUSH Response")
-    }
-    if err != nil{
         return err
     }
     err = resq.watch_queue(queue)
-    if err != nil{
-        return err
-    }
-    return nil
+    return err
 }
 
 func (resq *ResQ) Pop(queue string) map[string]interface{}{

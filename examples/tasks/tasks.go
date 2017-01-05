@@ -24,6 +24,6 @@ func CalculateArea(item map[string]interface{}) error {
         err = errors.New("Map has no required attributes")
         return err
     }
-    fmt.Printf("The area is %d\n", int(length.(float64)) * int(width.(float64)))
+    fmt.Printf("The rectangle area is %d\n", int(length.(float64)) * int(width.(float64)))
     return err
 }
