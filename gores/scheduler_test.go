@@ -9,7 +9,7 @@ import (
 var (
   config = &Config{
              REDISURL: "127.0.0.1:6379",
-             REDIS_PW: "",
+             REDIS_PW: "mypassword",
              BLPOP_MAX_BLOCK_TIME: 1,
              MAX_WORKERS: 2,
              Queues: []string{"TestJob", "TestScheduler"},
