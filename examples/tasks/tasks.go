@@ -6,20 +6,20 @@ import (
 )
 
 // Task for dequeued item with 'Name' = 'Item'
-func PrintItem(item map[string]interface{}) error {
+func PrintItem(args map[string]interface{}) error {
     var err error
-    for k, v := range item {
+    for k, v := range args {
         fmt.Printf("key: %s, value: %s\n", k, v)
     }
     return err
 }
 
 // task for item with 'Name' = 'Rectangle'
-func CalculateArea(item map[string]interface{}) error {
+func CalculateArea(args map[string]interface{}) error {
     var err error
 
-    length := item["Length"]
-    width := item["Width"]
+    length := args["Length"]
+    width := args["Width"]
     if length == nil || width == nil {
         err = errors.New("Map has no required attributes")
         return err
