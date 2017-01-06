@@ -38,7 +38,6 @@ An item is a Go map. It is required to have several keys:
 - ***Enqueue_timestamp***, the timestamp of when the item is enqueued, which is a Unix timestamp.
 
 ```go
-// produce.go
 
 configPath := flag.String("c", "config.json", "path to configuration file")
 flag.Parse()
@@ -85,9 +84,8 @@ func CalculateArea(args map[string]interface{}) error {
 }
 ```
 
-### Worker that execute tasks
+### Launch workers to consume items
 ```go
-// consume.go
 
 flag.Parse()
 config, err := gores.InitConfig(*configPath)
