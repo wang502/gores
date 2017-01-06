@@ -5,7 +5,7 @@ An asynchronous job execution system with Redis as message broker
 ## Installation
 Get the package
 ```
-go get github.com/wang502/gores/gores
+$ go get github.com/wang502/gores/gores
 ```
 Import the package
 ```go
@@ -24,13 +24,19 @@ Add a config.json in your project folder
   "Queues": ["queue1", "queue2"]
 }
 ```
-- REDISURL: specifies the Redis server address. If you run in a local Redis, the dafault host is ```127.0.0.1:6379```
-- REDIS_PW: specifies Redis password
-- BLPOP_MAX_BLOCK_TIME: time to block when calling BLPOP command in Redis
-- MAX_WORKERS: maximum number of concurrent worker, each worker is a goroutine
-- Queues: array of queue names on Redis message broker
+- REDISURL: Redis server address. If you run in a local Redis, the dafault host is ```127.0.0.1:6379```
+- REDIS_PW: Redis password. If the password is not set, then password can be any string.
+- BLPOP_MAX_BLOCK_TIME: Blocking time when calling BLPOP command in Redis.
+- MAX_WORKERS: Maximum number of concurrent workers, each worker is a separate goroutine that execute specific task on the fetched item.
+- Queues: Array of queue names on Redis message broker
 
 ### Enqueue item to message broker
+An item is a map. It is required to several keys:
+- ***Name***, name of the item to enqueue, items with different names are mapped to different task.
+- ***Queue***, queue name of the queue you want to put the item in.
+- ***Args***, the required arguments that you need in order for the workers to execute those tasks.
+- ***Enqueue_timestamp***, the timestamp of when the item is enqueued, which is a Unix timestamp.
+
 ```go
 // produce.go
 
@@ -56,7 +62,7 @@ if err != nil {
 ```
 
 ```
-go run produce.go ./config.json
+$ go run produce.go ./config.json
 ```
 
 ### Define tasks
