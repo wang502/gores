@@ -1,9 +1,9 @@
 package gores
 
 import (
-    _ "fmt"
+    "errors"
+    "log"
     "sync"
-    _ "time"
     "github.com/deckarep/golang-set"
 )
 
@@ -18,6 +18,10 @@ type Dispatcher struct {
 }
 
 func NewDispatcher(resq *ResQ, max_workers int, queues mapset.Set) *Dispatcher{
+    if resq == nil || max_workers <= 0 {
+        log.Println("Invalid arguments for initializing Dispatcher")
+        return nil
+    }
     worker_ids_channel = make(chan string, max_workers)
     return &Dispatcher{
               resq: resq,
@@ -27,12 +31,15 @@ func NewDispatcher(resq *ResQ, max_workers int, queues mapset.Set) *Dispatcher{
             }
 }
 
-func (disp *Dispatcher) Run(tasks *map[string]interface{}){
+func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
     var wg sync.WaitGroup
     config := disp.resq.config
 
     for i:=0; i<disp.max_workers; i++{
         worker := NewWorker(config, disp.queues, i+1)
+        if worker == nil {
+            return errors.New("ERROR running worker: worker is nil")
+        }
         worker_id := worker.String()
         worker_ids_channel <- worker_id
 
@@ -42,6 +49,7 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}){
     wg.Add(1)
     go disp.Dispatch(&wg)
     wg.Wait()
+    return nil
 }
 
 func (disp *Dispatcher) Dispatch(wg *sync.WaitGroup){

@@ -100,7 +100,7 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
     _, ok2 := item["Args"]
     var err error
     if !ok1 || !ok2 {
-        err = errors.New("unable to enqueue delayed Job without 'Queue' and 'Args' attributes")
+        err = errors.New("Unable to enqueue Job map without keys: 'Queue' and 'Args'")
     } else  {
         err = resq.Push(queue.(string), item)
     }
@@ -319,11 +319,10 @@ func (resq *ResQ) CurrentTime() int64 {
 
 /* -------------------------------------------------------------------------- */
 
-func Launch(config *Config, tasks *map[string]interface{}) {
+func Launch(config *Config, tasks *map[string]interface{}) error {
     resq := NewResQ(config)
     if resq == nil {
-        log.Fatalf("ERROR initialize ResQ")
-        return
+        return errors.New("ResQ is nil")
     }
 
     in_slice := make([]interface{}, len(config.Queues))
@@ -333,5 +332,9 @@ func Launch(config *Config, tasks *map[string]interface{}) {
     queues_set := mapset.NewSetFromSlice(in_slice)
 
     dispatcher := NewDispatcher(resq, config.MAX_WORKERS, queues_set)
-    dispatcher.Run(tasks)
+    if dispatcher == nil {
+        return errors.New("Dispatcher is nil")
+    }
+    err := dispatcher.Run(tasks)
+    return err
 }

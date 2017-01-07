@@ -32,7 +32,10 @@ func Consume(config *gores.Config){
                 "Item": tasks.PrintItem,
                 "Rectangle": tasks.CalculateArea,
            }
-    gores.Launch(config, &tasks)
+    err := gores.Launch(config, &tasks)
+    if err != nil {
+        log.Fatalf("ERROR launching consumer: %s\n", err)
+    }
 }
 
 func main()  {
