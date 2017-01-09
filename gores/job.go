@@ -84,7 +84,7 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
     } else {
         now := job.resq.CurrentTime()
         retry_at := now + int64(retry_every.(float64))
-        //fmt.Printf("retry_at: %d\n", retry_at)
+        //log.Printf("retry_at: %d\n", retry_at)
         err := job.resq.Enqueue_at(retry_at, payload)
         if err != nil {
             return false

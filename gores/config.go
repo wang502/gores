@@ -13,6 +13,8 @@ type Config struct {
     BLPOP_MAX_BLOCK_TIME int
     MAX_WORKERS int
     Queues []string
+    DispatcherTimeout int
+    WorkerTimeout int
 }
 
 // Initialize Config based on the config.json file path

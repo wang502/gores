@@ -4,6 +4,7 @@ import (
     "errors"
     "log"
     "sync"
+    "time"
     "github.com/deckarep/golang-set"
 )
 
@@ -15,19 +16,21 @@ type Dispatcher struct {
     jobChannel chan *Job
     doneChannel chan int
     queues mapset.Set
+    timeout int
 }
 
-func NewDispatcher(resq *ResQ, maxWorkers int, queues mapset.Set) *Dispatcher{
-    if resq == nil || maxWorkers <= 0 {
-        log.Println("Invalid arguments for initializing Dispatcher")
+func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher{
+    if resq == nil || config.MAX_WORKERS <= 0 {
+        log.Println("Invalid number of workers to initialize Dispatcher")
         return nil
     }
-    workerIdChan = make(chan string, maxWorkers)
+    workerIdChan = make(chan string, config.MAX_WORKERS)
     return &Dispatcher{
               resq: resq,
-              maxWorkers: maxWorkers,
-              jobChannel: make(chan *Job, maxWorkers),
+              maxWorkers: config.MAX_WORKERS,
+              jobChannel: make(chan *Job, config.MAX_WORKERS),
               queues: queues,
+              timeout: config.DispatcherTimeout,
             }
 }
 
@@ -44,7 +47,12 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
         workerIdChan <- workerId
 
         wg.Add(1)
-        go worker.Startup(disp, &wg, tasks)
+        go func () {
+            err := worker.Startup(disp, &wg, tasks)
+            if err != nil {
+                log.Fatalf("ERROR startup worker: %s", err)
+            }
+        }()
     }
     wg.Add(1)
     go disp.Dispatch(&wg)
@@ -64,7 +72,11 @@ func (disp *Dispatcher) Dispatch(wg *sync.WaitGroup){
                 }
               }
             }(workerId)
+        case <-time.After(time.Second * time.Duration(disp.timeout)):
+            log.Println("Timeout: Dispatch")
+            break
         }
+        break
     }
     wg.Done()
 }

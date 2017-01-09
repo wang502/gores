@@ -331,7 +331,7 @@ func Launch(config *Config, tasks *map[string]interface{}) error {
     }
     queues_set := mapset.NewSetFromSlice(in_slice)
 
-    dispatcher := NewDispatcher(resq, config.MAX_WORKERS, queues_set)
+    dispatcher := NewDispatcher(resq, config, queues_set)
     if dispatcher == nil {
         return errors.New("Dispatcher is nil")
     }

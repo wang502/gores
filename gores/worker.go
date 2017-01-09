@@ -23,6 +23,7 @@ type Worker struct{
     hostname string
     resq *ResQ
     started int64
+    timeout int
 }
 
 func NewWorker(config *Config, queues mapset.Set, goroutineId int) *Worker {
@@ -41,6 +42,7 @@ func NewWorker(config *Config, queues mapset.Set, goroutineId int) *Worker {
               hostname: hostname,
               resq: resq,
               started: 0,
+              timeout: config.WorkerTimeout,
            }
 }
 
@@ -193,24 +195,30 @@ func (worker *Worker) Startup(dispatcher *Dispatcher, wg *sync.WaitGroup, tasks 
     err := worker.PruneDeadWorkers()
     if err != nil {
         err = errors.New("Satrtup() ERROR when PruneDeadWorkers()")
+        return err
     }
     err = worker.RegisterWorker()
     if err != nil {
         err = errors.New("Startup() ERROR when RegisterWorker()")
+        return err
     }
     worker.Work(dispatcher, tasks)
 
+    err = worker.UnregisterWorker()
     wg.Done()
     return err
 }
 
-func (worker *Worker) Work(dispatcher *Dispatcher, tasks *map[string]interface{}){
+func (worker *Worker) Work(dispatcher *Dispatcher, tasks *map[string]interface{}) {
     for {
         select {
         case job := <-dispatcher.jobChannel:
             if err := job.PerformTask(tasks); err != nil {
                 log.Fatalf("ERROR Perform Job, %s", err)
             }
+        case <-time.After(time.Second * time.Duration(worker.timeout)):
+            log.Printf("Timeout: worker | %s\n", worker.String())
+            return
         }
     }
 }
