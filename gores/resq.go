@@ -22,7 +22,44 @@ type ResQ struct {
     config *Config
 }
 
-func MakeRedisPool(server string, password string) *redis.Pool {
+func NewResQ(config *Config) *ResQ {
+    var pool *redis.Pool
+    var host string
+
+    if len(config.REDISURL) != 0 && len(config.REDIS_PW) != 0 {
+        pool = initPoolFromString(config.REDISURL, config.REDIS_PW)
+        host = config.REDISURL
+    } else {
+        pool = initPool()
+        host = os.Getenv("REDISURL")
+    }
+    if pool == nil {
+        log.Printf("ERROR Initializing Redis Pool\n")
+        return nil
+    }
+    return &ResQ{
+              pool: pool,
+              _watched_queues: mapset.NewSet(),
+              Host: host,
+              config: config,
+            }
+}
+
+func NewResQFromString(config *Config, server string, password string) *ResQ {
+  pool := initPoolFromString(server, password)
+  if pool == nil {
+      log.Printf("initPool() Error\n")
+      return nil
+  }
+  return &ResQ{
+            pool: pool,
+            _watched_queues: mapset.NewSet(),
+            Host: os.Getenv("REDISURL"),
+            config: config,
+          }
+}
+
+func makeRedisPool(server string, password string) *redis.Pool {
     pool := &redis.Pool{
         MaxIdle: 5,
         IdleTimeout: 240 * time.Second,
@@ -45,49 +82,12 @@ func MakeRedisPool(server string, password string) *redis.Pool {
     return pool
 }
 
-func InitPool() *redis.Pool{
-    return MakeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
+func initPool() *redis.Pool{
+    return makeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
 }
 
-func InitPoolFromString(server string, password string) *redis.Pool {
-    return MakeRedisPool(server, password)
-}
-
-func NewResQ(config *Config) *ResQ {
-    var pool *redis.Pool
-    var host string
-
-    if len(config.REDISURL) != 0 && len(config.REDIS_PW) != 0 {
-        pool = InitPoolFromString(config.REDISURL, config.REDIS_PW)
-        host = config.REDISURL
-    } else {
-        pool = InitPool()
-        host = os.Getenv("REDISURL")
-    }
-    if pool == nil {
-        log.Printf("ERROR Initializing Redis Pool\n")
-        return nil
-    }
-    return &ResQ{
-              pool: pool,
-              _watched_queues: mapset.NewSet(),
-              Host: host,
-              config: config,
-            }
-}
-
-func NewResQFromString(config *Config, server string, password string) *ResQ {
-  pool := InitPoolFromString(server, password)
-  if pool == nil {
-      log.Printf("InitPool() Error\n")
-      return nil
-  }
-  return &ResQ{
-            pool: pool,
-            _watched_queues: mapset.NewSet(),
-            Host: os.Getenv("REDISURL"),
-            config: config,
-          }
+func initPoolFromString(server string, password string) *redis.Pool {
+    return makeRedisPool(server, password)
 }
 
 func (resq *ResQ) Enqueue(item map[string]interface{}) error {
@@ -102,12 +102,12 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
     if !ok1 || !ok2 {
         err = errors.New("Unable to enqueue Job map without keys: 'Queue' and 'Args'")
     } else  {
-        err = resq.Push(queue.(string), item)
+        err = resq.push(queue.(string), item)
     }
     return err
 }
 
-func (resq *ResQ) Push(queue string, item interface{}) error{
+func (resq *ResQ) push(queue string, item interface{}) error{
     conn := resq.pool.Get()
 
     _, err := conn.Do("RPUSH", fmt.Sprintf(QUEUE_PREFIX, queue), resq.Encode(item))
@@ -208,14 +208,14 @@ func (resq *ResQ) watch_queue(queue string) error{
 }
 
 func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
-    err := resq.DelayedPush(datetime, item)
+    err := resq.delayedPush(datetime, item)
     if err != nil {
         return err
     }
     return nil
 }
 
-func (resq *ResQ) DelayedPush(datetime int64, item interface{}) error {
+func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
     conn := resq.pool.Get()
     key := strconv.FormatInt(datetime, 10)
     _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))

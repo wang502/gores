@@ -38,7 +38,7 @@ var (
 )
 
 func TestResQPushPop(t *testing.T){
-    err := resq.Push("TestItem", item)
+    err := resq.push("TestItem", item)
     if err != nil{
         t.Errorf("ResQ Push returned ERROR")
     }
@@ -55,7 +55,7 @@ func TestResQPushPop(t *testing.T){
 }
 
 func TestResQSize(t *testing.T){
-    err := resq.Push("TestItem", item)
+    err := resq.push("TestItem", item)
     if err != nil{
         t.Errorf("ResQ Push returned ERROR")
     }

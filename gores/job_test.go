@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewJob(t *testing.T) {
-    err := resq.Push("TestItem", item)
+    err := resq.push("TestItem", item)
     if err != nil {
         t.Errorf("Error Push to queue")
     }
@@ -17,7 +17,7 @@ func TestNewJob(t *testing.T) {
 }
 
 func TestPerform(t *testing.T) {
-  err := resq.Push("TestItem", item)
+  err := resq.push("TestItem", item)
   if err != nil {
       t.Errorf("Error Push to queue")
   }

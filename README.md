@@ -101,7 +101,37 @@ gores.Launch(config, &tasks)
 $ go run main.go -c ./config.json -o consume
 ```
 
-### Output
+The output will be:
 ```
 The rectangle area is 100
+```
+
+### Info about processed/failed job
+```go
+resq := gores.NewResQ(config)
+if resq == nil {
+    log.Fatalf("resq is nil")
+}
+info := resq.Info()
+for k, v := range info {
+    switch v.(type) {
+    case string:
+      fmt.Printf("%s : %s\n", k, v)
+    case int:
+      fmt.Printf("%s : %d\n", k, v)
+    case int64:
+      fmt.Printf("%s : %d\n", k, v)
+    }
+}
+```
+
+The output will be:
+```
+Gores Info:
+queues : 2
+workers : 0
+failed : 0
+host : 127.0.0.1:6379
+pending : 0
+processed : 1
 ```
