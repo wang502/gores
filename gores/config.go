@@ -6,6 +6,7 @@ import (
     "encoding/json"
 )
 
+// Config contains the configuration parameters for running Gores
 type Config struct {
     REDISURL string
     REDIS_PW string
@@ -14,15 +15,16 @@ type Config struct {
     Queues []string
 }
 
+// Initialize Config based on the config.json file path
 func InitConfig(confPath string) (*Config, error) {
     config := Config{}
 
-    config_file, err := os.Open(confPath)
+    configFile, err := os.Open(confPath)
     if err != nil {
         return &config, err
     }
 
-    decoder := json.NewDecoder(config_file)
+    decoder := json.NewDecoder(configFile)
     err = decoder.Decode(&config)
     if err != nil {
         return &config, errors.New("ERROR decode config.json")

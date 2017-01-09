@@ -9,10 +9,10 @@ import (
 
 var (
     queues = []interface{}{"TestItem", "Comment"}
-    q_set = mapset.NewSetFromSlice(queues)
+    qSet = mapset.NewSetFromSlice(queues)
 
     // config declared in resq_test.go
-    worker = NewWorker(config, q_set, 1)
+    worker = NewWorker(config, qSet, 1)
 )
 
 func TestNewWorker(t *testing.T){
@@ -22,14 +22,14 @@ func TestNewWorker(t *testing.T){
 }
 
 func TestWorkerString(t *testing.T){
-    worker_id := worker.String()
-    id_tokens := strings.Split(worker_id, ":")
+    workerId := worker.String()
+    idTokens := strings.Split(workerId, ":")
     hostname, _ := os.Hostname()
-    if strings.Compare(id_tokens[0], hostname) != 0 {
+    if strings.Compare(idTokens[0], hostname) != 0 {
         t.Errorf("Worker id contains incorrect hostname")
     }
     // host:pid:goroutine_id:queue1,queue2
-    if strings.Compare(id_tokens[3], "Comment,TestItem") != 0 && strings.Compare(id_tokens[3], "TestItem,Comment") != 0 {
+    if strings.Compare(idTokens[3], "Comment,TestItem") != 0 && strings.Compare(idTokens[3], "TestItem,Comment") != 0 {
         t.Errorf("Worker contains incorrect queue name")
     }
 }
@@ -54,38 +54,38 @@ func TestUnregisterWorker(t *testing.T) {
 }
 
 func MakeTestWorkers(num int) []*Worker {
-    test_queue := []interface{}{"test1", "test2", "test3"}
-    test_queue_set := mapset.NewSetFromSlice(test_queue)
+    testQueue := []interface{}{"test1", "test2", "test3"}
+    testQueueSet := mapset.NewSetFromSlice(testQueue)
     ret := make([]*Worker, num)
     for i:=0; i<num; i++ {
-        ret[i] = NewWorker(config, test_queue_set, i+1)
+        ret[i] = NewWorker(config, testQueueSet, i+1)
     }
     return ret
 }
 
 func TestAll(t *testing.T) {
-    test_workers := MakeTestWorkers(1)
-    for _, w := range test_workers {
+    testWorkers := MakeTestWorkers(1)
+    for _, w := range testWorkers {
         err := w.RegisterWorker()
         if err != nil {
             t.Errorf("Error Register Worker")
         }
     }
 
-    all_workers := test_workers[0].All(test_workers[0].ResQ())
-    if len(all_workers) != len(test_workers) {
+    allWorkers := testWorkers[0].All(testWorkers[0].ResQ())
+    if len(allWorkers) != len(testWorkers) {
         t.Errorf("Worker All() did not return all workers")
     }
 
-    for _, w := range test_workers {
+    for _, w := range testWorkers {
         err := w.UnregisterWorker()
         if err != nil {
             t.Errorf("ERROR Unregister Worker")
         }
     }
 
-    all_workers = test_workers[0].All(test_workers[0].ResQ())
-    if len(all_workers) != 0 {
+    allWorkers = testWorkers[0].All(testWorkers[0].ResQ())
+    if len(allWorkers) != 0 {
         t.Errorf("Worker Unregsiter Worker unsuccessful")
     }
 }

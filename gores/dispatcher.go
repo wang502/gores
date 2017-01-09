@@ -7,26 +7,26 @@ import (
     "github.com/deckarep/golang-set"
 )
 
-var worker_ids_channel chan string
+var workerIdChan chan string
 
 type Dispatcher struct {
     resq *ResQ
-    max_workers int
-    job_channel chan *Job
-    done_channel chan int
+    maxWorkers int
+    jobChannel chan *Job
+    doneChannel chan int
     queues mapset.Set
 }
 
-func NewDispatcher(resq *ResQ, max_workers int, queues mapset.Set) *Dispatcher{
-    if resq == nil || max_workers <= 0 {
+func NewDispatcher(resq *ResQ, maxWorkers int, queues mapset.Set) *Dispatcher{
+    if resq == nil || maxWorkers <= 0 {
         log.Println("Invalid arguments for initializing Dispatcher")
         return nil
     }
-    worker_ids_channel = make(chan string, max_workers)
+    workerIdChan = make(chan string, maxWorkers)
     return &Dispatcher{
               resq: resq,
-              max_workers: max_workers,
-              job_channel: make(chan *Job, max_workers),
+              maxWorkers: maxWorkers,
+              jobChannel: make(chan *Job, maxWorkers),
               queues: queues,
             }
 }
@@ -35,13 +35,13 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
     var wg sync.WaitGroup
     config := disp.resq.config
 
-    for i:=0; i<disp.max_workers; i++{
+    for i:=0; i<disp.maxWorkers; i++{
         worker := NewWorker(config, disp.queues, i+1)
         if worker == nil {
             return errors.New("ERROR running worker: worker is nil")
         }
-        worker_id := worker.String()
-        worker_ids_channel <- worker_id
+        workerId := worker.String()
+        workerIdChan <- workerId
 
         wg.Add(1)
         go worker.Startup(disp, &wg, tasks)
@@ -55,15 +55,15 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
 func (disp *Dispatcher) Dispatch(wg *sync.WaitGroup){
     for {
         select {
-        case worker_id := <-worker_ids_channel:
-            go func(worker_id string){
+        case workerId := <-workerIdChan:
+            go func(workerId string){
               for {
-                job := ReserveJob(disp.resq, disp.queues, worker_id)
+                job := ReserveJob(disp.resq, disp.queues, workerId)
                 if job != nil {
-                  disp.job_channel<-job
+                  disp.jobChannel<-job
                 }
               }
-            }(worker_id)
+            }(workerId)
         }
     }
     wg.Done()

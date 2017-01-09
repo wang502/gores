@@ -15,7 +15,7 @@ import (
 
 type Worker struct{
     id string
-    goroutine_id int
+    goroutineId int
     queues mapset.Set
     shutdown bool
     child string
@@ -25,7 +25,7 @@ type Worker struct{
     started int64
 }
 
-func NewWorker(config *Config, queues mapset.Set, goroutine_id int) *Worker {
+func NewWorker(config *Config, queues mapset.Set, goroutineId int) *Worker {
     resq := NewResQ(config)
     if resq == nil {
         return nil
@@ -33,7 +33,7 @@ func NewWorker(config *Config, queues mapset.Set, goroutine_id int) *Worker {
     hostname, _ := os.Hostname()
     return &Worker{
               id : "",
-              goroutine_id : goroutine_id,
+              goroutineId : goroutineId,
               queues: queues,
               shutdown: false,
               child: "",
@@ -44,7 +44,7 @@ func NewWorker(config *Config, queues mapset.Set, goroutine_id int) *Worker {
            }
 }
 
-func NewWorkerFromString(config *Config, server string, password string, queues mapset.Set, goroutine_id int) *Worker{
+func NewWorkerFromString(config *Config, server string, password string, queues mapset.Set, goroutineId int) *Worker{
     resq := NewResQFromString(config, server, password)
     if resq == nil {
         return nil
@@ -52,7 +52,7 @@ func NewWorkerFromString(config *Config, server string, password string, queues 
     hostname, _ := os.Hostname()
     return &Worker{
               id : "",
-              goroutine_id : goroutine_id,
+              goroutineId : goroutineId,
               queues: queues,
               shutdown: false,
               child: "",
@@ -73,15 +73,14 @@ func (worker *Worker) String() string {
       hostname:pid:queue1,queue2,queue3 */
     if worker.id != "" {
         return worker.id
-    } else {
-        qs := ""
-        it := worker.queues.Iterator()
-        for elem := range it.C {
-            qs += elem.(string) + ","
-        }
-        worker.id = fmt.Sprintf("%s:%d:%d:%s", worker.hostname, worker.pid, worker.goroutine_id, qs[:len(qs)-1])
-        return worker.id
     }
+    qs := ""
+    it := worker.queues.Iterator()
+    for elem := range it.C {
+        qs += elem.(string) + ","
+    }
+    worker.id = fmt.Sprintf("%s:%d:%d:%s", worker.hostname, worker.pid, worker.goroutineId, qs[:len(qs)-1])
+    return worker.id
 }
 
 func (worker *Worker) RegisterWorker() error{
@@ -102,26 +101,26 @@ func (worker *Worker) UnregisterWorker() error {
     }
     worker.started = 0
 
-    p_stat := NewStat(fmt.Sprintf("processed:%s", worker.String()), worker.resq)
-    p_stat.Clear()
+    pStat := NewStat(fmt.Sprintf("processed:%s", worker.String()), worker.resq)
+    pStat.Clear()
 
-    f_stat := NewStat(fmt.Sprintf("falied:%s", worker.String()), worker.resq)
-    f_stat.Clear()
+    fStat := NewStat(fmt.Sprintf("falied:%s", worker.String()), worker.resq)
+    fStat.Clear()
 
     return err
 }
 
 func (this *Worker) PruneDeadWorkers() error {
-    all_workers := this.All(this.resq)
-    all_machine_pids := this.WorkerPids()
-    for _, w := range all_workers {
-        id_tokens := strings.Split(w.id, ":")
-        host := id_tokens[0]
-        w_pid := id_tokens[1]
+    allWorkers := this.All(this.resq)
+    allPids := this.WorkerPids()
+    for _, w := range allWorkers {
+        idTokens := strings.Split(w.id, ":")
+        host := idTokens[0]
+        wPid := idTokens[1]
         if strings.Compare(host, this.hostname) != 0 {
             continue
         }
-        if all_machine_pids.Contains(w_pid) {
+        if allPids.Contains(wPid) {
             continue
         }
         fmt.Printf("Pruning dead worker: %s\n", w.String())
@@ -134,35 +133,35 @@ func (this *Worker) PruneDeadWorkers() error {
 
 func (worker *Worker) All(resq *ResQ) []*Worker {
     worker_ids := resq.Workers()
-    all_workers := make([]*Worker, len(worker_ids))
+    allWorkers := make([]*Worker, len(worker_ids))
     for i, w := range worker_ids{
-        all_workers[i] = worker.Find(w, resq)
+        allWorkers[i] = worker.Find(w, resq)
     }
-    return all_workers
+    return allWorkers
 }
 
-func (worker *Worker) Find(worker_id string, resq *ResQ) *Worker {
-    var new_worker *Worker
-    if worker.Exists(worker_id) == 1 {
-        id_tokens := strings.Split(worker_id, ":")
-        goroutine_id, _ := strconv.Atoi(id_tokens[2])
+func (worker *Worker) Find(workerId string, resq *ResQ) *Worker {
+    var newWorker *Worker
+    if worker.Exists(workerId) == 1 {
+        idTokens := strings.Split(workerId, ":")
+        goroutineId, _ := strconv.Atoi(idTokens[2])
 
-        q_slice := strings.Split(id_tokens[len(id_tokens)-1], ",")
-        in_slice := make([]interface{}, len(q_slice))
-        for i, q := range q_slice {
-            in_slice[i] = q
+        qSlice := strings.Split(idTokens[len(idTokens)-1], ",")
+        inSlice := make([]interface{}, len(qSlice))
+        for i, q := range qSlice {
+            inSlice[i] = q
         }
-        q_set := mapset.NewSetFromSlice(in_slice)
+        qSet := mapset.NewSetFromSlice(inSlice)
 
         config := worker.resq.config
-        new_worker =  NewWorker(config, q_set, goroutine_id)
-        new_worker.id = worker_id
+        newWorker =  NewWorker(config, qSet, goroutineId)
+        newWorker.id = workerId
     }
-    return new_worker
+    return newWorker
 }
 
-func (worker *Worker) Exists(worker_id string) int64 {
-    reply, err := worker.resq.pool.Get().Do("SISMEMBER", WATCHED_WORKERS, worker_id)
+func (worker *Worker) Exists(workerId string) int64 {
+    reply, err := worker.resq.pool.Get().Do("SISMEMBER", WATCHED_WORKERS, workerId)
     if err != nil || reply == nil {
         return 0
     }
@@ -208,7 +207,7 @@ func (worker *Worker) Startup(dispatcher *Dispatcher, wg *sync.WaitGroup, tasks 
 func (worker *Worker) Work(dispatcher *Dispatcher, tasks *map[string]interface{}){
     for {
         select {
-        case job := <-dispatcher.job_channel:
+        case job := <-dispatcher.jobChannel:
             if err := job.PerformTask(tasks); err != nil {
                 log.Fatalf("ERROR Perform Job, %s", err)
             }

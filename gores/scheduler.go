@@ -6,8 +6,8 @@ import (
 
 type Scheduler struct {
     resq *ResQ
-    timestamp_chan chan int64
-    shutdown_chan chan bool
+    timestampChan chan int64
+    shutdownChan chan bool
 }
 
 func NewScheduler(config *Config) *Scheduler {
@@ -19,14 +19,14 @@ func NewScheduler(config *Config) *Scheduler {
     }
     sche = &Scheduler{
               resq: resq,
-              timestamp_chan: make(chan int64, 1),
-              shutdown_chan: make(chan bool, 1),
+              timestampChan: make(chan int64, 1),
+              shutdownChan: make(chan bool, 1),
            }
     return sche
 }
 
 func (sche *Scheduler) ScheduleShutdown(){
-    sche.shutdown_chan <- true
+    sche.shutdownChan <- true
 }
 
 func (sche *Scheduler) NextDelayedTimestamps(){
@@ -34,7 +34,7 @@ func (sche *Scheduler) NextDelayedTimestamps(){
         timestamp := sche.resq.NextDelayedTimestamp()
         log.Printf("timestamp of delayed item: %d\n", timestamp)
         if timestamp != 0 {
-            sche.timestamp_chan <- timestamp
+            sche.timestampChan <- timestamp
         } else {
             /* breaks when there is no delayed items in the 'resq:delayed:timestamp' queue*/
             break
@@ -47,7 +47,7 @@ func (sche *Scheduler) HandleDelayedItems(){
     go sche.NextDelayedTimestamps()
     for {
         select{
-        case timestamp := <- sche.timestamp_chan:
+        case timestamp := <- sche.timestampChan:
             item := sche.resq.NextItemForTimestamp(timestamp)
             if item != nil {
                 log.Println(item)
@@ -56,7 +56,7 @@ func (sche *Scheduler) HandleDelayedItems(){
                   log.Fatalf("ERROR Enqueue Delayed Item: %s", err)
                 }
             }
-        case <-sche.shutdown_chan:
+        case <-sche.shutdownChan:
             return
         }
     }
