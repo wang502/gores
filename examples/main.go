@@ -12,13 +12,13 @@ import (
 
 func Produce(config *gores.Config){
     item := map[string]interface{}{
-      "Name": "Rectangle",
-      "Queue": "TestJob",
-      "Args": map[string]interface{}{
-                "Length": 10,
-                "Width": 10,
-              },
-      "Enqueue_timestamp": time.Now().Unix(),
+                "Name": "Rectangle",
+                "Queue": "TestJob",
+                "Args": map[string]interface{}{
+                          "Length": 10,
+                          "Width": 10,
+                        },
+                "Enqueue_timestamp": time.Now().Unix(),
     }
 
     resq := gores.NewResQ(config)
@@ -67,6 +67,7 @@ func main()  {
         Consume(config)
     } else if strings.Compare("info", *option) == 0 {
         info := GetInfo(config)
+
         fmt.Println("Gores Info: ")
         for k, v := range info {
             switch v.(type) {

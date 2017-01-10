@@ -34,19 +34,21 @@ Add a config.json in your project folder
 - ***DispatcherTimeout***: Duration dispatcher will wait to dispatch new job before quitting.
 - ***WorkerTimeout***: Duration worker will wait to process new job before quitting.
 
-### Enqueue item to Redis queue
-An item is a Go map. It is required to have several keys:
-- ***Name***, name of the item to enqueue, items with different names are mapped to different tasks.
-- ***Queue***, name of the queue you want to put the item in.
-- ***Args***, the required arguments that you need in order for the workers to execute those tasks.
-- ***Enqueue_timestamp***, the timestamp of when the item is enqueued, which is a Unix timestamp.
-
+Initialize config
 ```go
-
 configPath := flag.String("c", "config.json", "path to configuration file")
 flag.Parse()
 config, err := gores.InitConfig(*configPath)
+```
 
+### Enqueue item to Redis queue
+An item is a Go map. It is required to have several keys:
+- ***Name***: name of the item to enqueue, items with different names are mapped to different tasks.
+- ***Queue***: name of the queue you want to put the item in.
+- ***Args***: the required arguments that you need in order for the workers to execute those tasks.
+- ***Enqueue_timestamp***: the Unix timestamp of when the item is enqueued.
+
+```go
 resq := gores.NewResQ(config)
 item := map[string]interface{}{
   "Name": "Rectangle",
@@ -90,10 +92,6 @@ func CalculateArea(args map[string]interface{}) error {
 
 ### Launch workers to consume items and execute tasks
 ```go
-
-flag.Parse()
-config, err := gores.InitConfig(*configPath)
-
 tasks := map[string]interface{}{
               "Item": tasks.PrintItem,
               "Rectangle": tasks.CalculateArea,
