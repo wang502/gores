@@ -21,16 +21,20 @@ Add a config.json in your project folder
   "REDIS_PW": "mypassword",
   "BLPOP_MAX_BLOCK_TIME" : 1,
   "MAX_WORKERS": 2,
-  "Queues": ["queue1", "queue2"]
+  "Queues": ["queue1", "queue2"],
+  "DispatcherTimeout": 5,
+  "WorkerTimeout": 5
 }
 ```
 - ***REDISURL***: Redis server address. If you run in a local Redis, the dafault host is ```127.0.0.1:6379```
 - ***REDIS_PW***: Redis password. If the password is not set, then password can be any string.
 - ***BLPOP_MAX_BLOCK_TIME***: Blocking time when calling BLPOP command in Redis.
 - ***MAX_WORKERS***: Maximum number of concurrent workers, each worker is a separate goroutine that execute specific task on the fetched item.
-- ***Queues***: Array of queue names on Redis message broker
+- ***Queues***: Array of queue names on Redis message broker.
+- ***DispatcherTimeout***: Duration dispatcher will wait to dispatch new job before quitting.
+- ***WorkerTimeout***: Duration worker will wait to process new job before quitting.
 
-### Enqueue item to message broker
+### Enqueue item to Redis queue
 An item is a Go map. It is required to have several keys:
 - ***Name***, name of the item to enqueue, items with different names are mapped to different tasks.
 - ***Queue***, name of the queue you want to put the item in.
@@ -84,7 +88,7 @@ func CalculateArea(args map[string]interface{}) error {
 }
 ```
 
-### Launch workers to consume items
+### Launch workers to consume items and execute tasks
 ```go
 
 flag.Parse()
@@ -135,3 +139,6 @@ host : 127.0.0.1:6379
 pending : 0
 processed : 1
 ```
+
+## Contribution
+Please feel free to suggest new features. Also open to pull request!
