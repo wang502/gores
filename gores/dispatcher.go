@@ -47,7 +47,7 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
             return errors.New("ERROR running worker: worker is nil")
         }
         workerID := worker.String()
-        workerIDChan <- workerId
+        workerIDChan <- workerID
 
         wg.Add(1)
         go func () {
@@ -70,12 +70,12 @@ func (disp *Dispatcher) Dispatch(wg *sync.WaitGroup){
         case workerID := <-workerIDChan:
             go func(workerID string){
               for {
-                job := ReserveJob(disp.resq, disp.queues, workerId)
+                job := ReserveJob(disp.resq, disp.queues, workerID)
                 if job != nil {
                   disp.jobChannel<-job
                 }
               }
-            }(workerId)
+            }(workerID)
         case <-time.After(time.Second * time.Duration(disp.timeout)):
             log.Println("Timeout: Dispatch")
             break

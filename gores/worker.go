@@ -87,6 +87,10 @@ func (worker *Worker) String() string {
 
 func (worker *Worker) RegisterWorker() error{
     conn := worker.resq.pool.Get()
+    if conn == nil {
+        return errors.New("Redis pool's connection is nil")
+    }
+
     _, err := conn.Do("SADD", WATCHED_WORKERS, worker.String())
     if err != nil {
         err = errors.New("ERROR Register Wroker")
@@ -97,6 +101,10 @@ func (worker *Worker) RegisterWorker() error{
 
 func (worker *Worker) UnregisterWorker() error {
     conn := worker.resq.pool.Get()
+    if conn == nil {
+        return errors.New("Redis pool's connection is nil")
+    }
+
     _, err := conn.Do("SREM", WATCHED_WORKERS, worker.String())
     if err != nil {
         err = errors.New("ERROR Unregsiter Worker")

@@ -120,6 +120,9 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 // Helper function to put job item to Redis message queue
 func (resq *ResQ) push(queue string, item interface{}) error{
     conn := resq.pool.Get()
+    if conn == nil {
+        return errors.New("Redis pool's connection is nil")
+    }
 
     _, err := conn.Do("RPUSH", fmt.Sprintf(QUEUE_PREFIX, queue), resq.Encode(item))
     if err != nil{
@@ -136,6 +139,11 @@ func (resq *ResQ) Pop(queue string) map[string]interface{}{
     var decoded map[string]interface{}
 
     conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return decoded
+    }
+
     reply, err := conn.Do("LPOP", fmt.Sprintf(QUEUE_PREFIX, queue))
     if err != nil || reply == nil {
         return decoded
@@ -155,6 +163,11 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
     var decoded map[string]interface{}
 
     conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return "", decoded
+    }
+
     queues_slice := make([]interface{}, queues.Cardinality())
     it := queues.Iterator()
     i := 0
@@ -196,6 +209,11 @@ func (resq *ResQ) Encode(item interface{}) string{
 // Size returns the size of the given message queue "resq:queue:%s" on Redis
 func (resq *ResQ) Size(queue string) int64 {
     conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return 0
+    }
+
     size, err:= conn.Do("LLEN", fmt.Sprintf(QUEUE_PREFIX, queue))
     if size == nil || err != nil {
         return 0
@@ -206,6 +224,11 @@ func (resq *ResQ) Size(queue string) int64 {
 // SizeOfQueue return the size of any given queue on Redis
 func (resq *ResQ) SizeOfQueue(key string) int64{
     conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return 0
+    }
+
     size, err := conn.Do("LLEN", key)
     if size == nil || err != nil {
         return 0
@@ -218,6 +241,10 @@ func (resq *ResQ) watch_queue(queue string) error{
         return nil
     } else {
         conn := resq.pool.Get()
+        if conn == nil {
+            return errors.New("Redis pool's connection is nil")
+        }
+
         _, err := conn.Do("SADD", WATCHED_QUEUES, queue)
         if err != nil{
             err = errors.New("watch_queue() SADD Error")
@@ -236,6 +263,10 @@ func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
 
 func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
     conn := resq.pool.Get()
+    if conn == nil {
+        return errors.New("Redis pool's connection is nil")
+    }
+
     key := strconv.FormatInt(datetime, 10)
     _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))
     if err != nil {
@@ -249,9 +280,15 @@ func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
 }
 
 func (resq *ResQ) Queues() []string{
-    conn := resq.pool.Get()
-    data, _ := conn.Do("SMEMBERS", WATCHED_QUEUES)
     queues := make([]string, 0)
+
+    conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return queues
+    }
+
+    data, _ := conn.Do("SMEMBERS", WATCHED_QUEUES)
     for _, q := range data.([]interface{}){
         queues = append(queues, string(q.([]byte)))
     }
@@ -264,6 +301,7 @@ func (resq *ResQ) Workers() []string {
     if data == nil || err != nil {
         return nil
     }
+
     workers := make([]string, len(data.([]interface{})))
     for i, w := range data.([]interface{}) {
         workers[i] = string(w.([]byte))
@@ -289,6 +327,11 @@ func (resq *ResQ) Info() map[string]interface{} {
 
 func (resq *ResQ) NextDelayedTimestamp() int64 {
     conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return 0
+    }
+
     key := resq.CurrentTime()
     data, err := conn.Do("ZRANGEBYSCORE", WATCHED_DELAYED_QUEUE_SCHEDULE, "-inf", key)
     if err != nil || data == nil {
@@ -310,7 +353,13 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 
     s_time := strconv.FormatInt(timestamp, 10)
     key := fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, s_time)
+
     conn := resq.pool.Get()
+    if conn == nil {
+        log.Printf("Redis pool's connection is nil")
+        return res
+    }
+
     reply, err := conn.Do("LPOP", key)
     if reply == nil || err != nil {
         return res
