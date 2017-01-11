@@ -8,8 +8,9 @@ import (
     "github.com/deckarep/golang-set"
 )
 
-var workerIdChan chan string
+var workerIDChan chan string
 
+// Dispatcher represents the dispatcher between Redis server and workers
 type Dispatcher struct {
     resq *ResQ
     maxWorkers int
@@ -19,12 +20,13 @@ type Dispatcher struct {
     timeout int
 }
 
+// NewDispatcher creates Dispatcher instance
 func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher{
     if resq == nil || config.MAX_WORKERS <= 0 {
         log.Println("Invalid number of workers to initialize Dispatcher")
         return nil
     }
-    workerIdChan = make(chan string, config.MAX_WORKERS)
+    workerIDChan = make(chan string, config.MAX_WORKERS)
     return &Dispatcher{
               resq: resq,
               maxWorkers: config.MAX_WORKERS,
@@ -34,6 +36,7 @@ func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher{
             }
 }
 
+// Run startups the Dispatcher
 func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
     var wg sync.WaitGroup
     config := disp.resq.config
@@ -43,8 +46,8 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
         if worker == nil {
             return errors.New("ERROR running worker: worker is nil")
         }
-        workerId := worker.String()
-        workerIdChan <- workerId
+        workerID := worker.String()
+        workerIDChan <- workerId
 
         wg.Add(1)
         go func () {
@@ -60,11 +63,12 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
     return nil
 }
 
+// Dispatch lets Dispatcher transport jobs between Redis and Gores workers
 func (disp *Dispatcher) Dispatch(wg *sync.WaitGroup){
     for {
         select {
-        case workerId := <-workerIdChan:
-            go func(workerId string){
+        case workerID := <-workerIDChan:
+            go func(workerID string){
               for {
                 job := ReserveJob(disp.resq, disp.queues, workerId)
                 if job != nil {

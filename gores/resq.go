@@ -15,6 +15,7 @@ import (
 )
 // redis-cli -h host -p port -a password
 
+// ResQ represents the main Gores object that stores all configurations and connection with Redis
 type ResQ struct {
     pool *redis.Pool
     _watched_queues mapset.Set
@@ -22,6 +23,7 @@ type ResQ struct {
     config *Config
 }
 
+// NewResQ creates a new ResQ instance given the pointer to config object
 func NewResQ(config *Config) *ResQ {
     var pool *redis.Pool
     var host string
@@ -45,6 +47,8 @@ func NewResQ(config *Config) *ResQ {
             }
 }
 
+// NewResQ creates a new ResQ instance
+// given the pointer to config object, Redis server address and password
 func NewResQFromString(config *Config, server string, password string) *ResQ {
   pool := initPoolFromString(server, password)
   if pool == nil {
@@ -59,6 +63,8 @@ func NewResQFromString(config *Config, server string, password string) *ResQ {
           }
 }
 
+// makeRedisPool creates new redis.Pool instance
+// given Redis server address and password
 func makeRedisPool(server string, password string) *redis.Pool {
     pool := &redis.Pool{
         MaxIdle: 5,
@@ -82,19 +88,23 @@ func makeRedisPool(server string, password string) *redis.Pool {
     return pool
 }
 
+// helper function to create new redis.Pool instance
 func initPool() *redis.Pool{
     return makeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
 }
 
+// helper function to create new redis.Pool instance
+// given Redis server address and password
 func initPoolFromString(server string, password string) *redis.Pool {
     return makeRedisPool(server, password)
 }
 
+// Enqueue put new job item to Redis message queue
 func (resq *ResQ) Enqueue(item map[string]interface{}) error {
     /*
       Enqueue a job into a specific queue. Make sure the map you are
       passing has keys
-      **Queue**, **Enqueue_timestamp**, **Args**
+      **Name**, **Queue**, **Enqueue_timestamp**, **Args**
     */
     queue, ok1 := item["Queue"]
     _, ok2 := item["Args"]
@@ -107,6 +117,7 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
     return err
 }
 
+// Helper function to put job item to Redis message queue
 func (resq *ResQ) push(queue string, item interface{}) error{
     conn := resq.pool.Get()
 
@@ -119,6 +130,8 @@ func (resq *ResQ) push(queue string, item interface{}) error{
     return err
 }
 
+// Pop calls "LPOP" command on Redis message queue
+// "LPOP" does not block even there is no item found
 func (resq *ResQ) Pop(queue string) map[string]interface{}{
     var decoded map[string]interface{}
 
@@ -136,6 +149,8 @@ func (resq *ResQ) Pop(queue string) map[string]interface{}{
     return decoded
 }
 
+// BlockPop calls "BLPOP" command on Redis message queue
+// "BLPOP" blocks for a configured time until a new job item is found and popped
 func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
     var decoded map[string]interface{}
 
@@ -160,6 +175,7 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
     return queue_key, decoded
 }
 
+// Decode unmarshals byte array returned from Redis to a map instance
 func (resq *ResQ) Decode(data []byte) map[string]interface{}{
     var decoded map[string]interface{}
     if err := json.Unmarshal(data, &decoded); err != nil{
@@ -168,6 +184,7 @@ func (resq *ResQ) Decode(data []byte) map[string]interface{}{
     return decoded
 }
 
+// Encode marshalls map instance to ites string representation
 func (resq *ResQ) Encode(item interface{}) string{
     b, err := json.Marshal(item)
     if err != nil{
@@ -176,6 +193,7 @@ func (resq *ResQ) Encode(item interface{}) string{
     return string(b)
 }
 
+// Size returns the size of the given message queue "resq:queue:%s" on Redis
 func (resq *ResQ) Size(queue string) int64 {
     conn := resq.pool.Get()
     size, err:= conn.Do("LLEN", fmt.Sprintf(QUEUE_PREFIX, queue))
@@ -185,6 +203,7 @@ func (resq *ResQ) Size(queue string) int64 {
     return size.(int64)
 }
 
+// SizeOfQueue return the size of any given queue on Redis
 func (resq *ResQ) SizeOfQueue(key string) int64{
     conn := resq.pool.Get()
     size, err := conn.Do("LLEN", key)
@@ -318,7 +337,7 @@ func (resq *ResQ) CurrentTime() int64 {
 }
 
 /* -------------------------------------------------------------------------- */
-
+// Launch startups the gores Dispatcher and Worker to do background works
 func Launch(config *Config, tasks *map[string]interface{}) error {
     resq := NewResQ(config)
     if resq == nil {

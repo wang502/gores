@@ -41,8 +41,8 @@ flag.Parse()
 config, err := gores.InitConfig(*configPath)
 ```
 
-### Enqueue item to Redis queue
-An item is a Go map. It is required to have several keys:
+### Enqueue job to Redis queue
+A job is a Go map. It is required to have several keys:
 - ***Name***: name of the item to enqueue, items with different names are mapped to different tasks.
 - ***Queue***: name of the queue you want to put the item in.
 - ***Args***: the required arguments that you need in order for the workers to execute those tasks.
@@ -50,7 +50,7 @@ An item is a Go map. It is required to have several keys:
 
 ```go
 resq := gores.NewResQ(config)
-item := map[string]interface{}{
+job := map[string]interface{}{
   "Name": "Rectangle",
   "Queue": "TestJob",
   "Args": map[string]interface{}{
@@ -60,7 +60,7 @@ item := map[string]interface{}{
   "Enqueue_timestamp": time.Now().Unix(),
 }
 
-err = resq.Enqueue(item)
+err = resq.Enqueue(job)
 if err != nil {
 	log.Fatalf("ERROR Enqueue item to ResQ")
 }

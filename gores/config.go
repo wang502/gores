@@ -17,7 +17,7 @@ type Config struct {
     WorkerTimeout int
 }
 
-// Initialize Config based on the config.json file path
+// InitConfig creates new config instance based on the config.json file path
 func InitConfig(confPath string) (*Config, error) {
     config := Config{}
 
