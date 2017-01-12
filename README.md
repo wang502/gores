@@ -13,6 +13,12 @@ import "github.com/wang502/gores/gores"
 ```
 
 ## Usage
+### Start local Redis server
+```
+$ git clone git@github.com:antirez/redis.git
+$ ./src/redis-server
+```
+
 ### Configuration
 Add a config.json in your project folder
 ```json

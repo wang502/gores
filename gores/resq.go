@@ -120,6 +120,7 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 // Helper function to put job item to Redis message queue
 func (resq *ResQ) push(queue string, item interface{}) error{
     conn := resq.pool.Get()
+
     if conn == nil {
         return errors.New("Redis pool's connection is nil")
     }
@@ -129,6 +130,7 @@ func (resq *ResQ) push(queue string, item interface{}) error{
         err = errors.New("Invalid Redis RPUSH Response")
         return err
     }
+
     err = resq.watch_queue(queue)
     return err
 }
