@@ -16,6 +16,7 @@ import "github.com/wang502/gores/gores"
 ### Start local Redis server
 ```
 $ git clone git@github.com:antirez/redis.git
+$ cd redis
 $ ./src/redis-server
 ```
 
