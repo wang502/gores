@@ -125,14 +125,18 @@ func (resq *ResQ) push(queue string, item interface{}) error{
         return errors.New("Redis pool's connection is nil")
     }
 
-    _, err := conn.Do("RPUSH", fmt.Sprintf(QUEUE_PREFIX, queue), resq.Encode(item))
+    itemString, err := resq.Encode(item)
+    if err != nil {
+        return err
+    }
+
+    _, err = conn.Do("RPUSH", fmt.Sprintf(QUEUE_PREFIX, queue), itemString)
     if err != nil{
         err = errors.New("Invalid Redis RPUSH Response")
         return err
     }
 
-    err = resq.watch_queue(queue)
-    return err
+    return resq.watch_queue(queue)
 }
 
 // Pop calls "LPOP" command on Redis message queue
@@ -155,8 +159,8 @@ func (resq *ResQ) Pop(queue string) map[string]interface{}{
     if err != nil{
         return decoded
     }
-    decoded = resq.Decode(data)
-    return decoded
+    item, _ := resq.Decode(data)
+    return item
 }
 
 // BlockPop calls "BLPOP" command on Redis message queue
@@ -186,26 +190,26 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
 
     // returned data contains [key, value], extract key at index 0, value at index 1
     queue_key := string(data.([]interface{})[0].([]byte))
-    decoded = resq.Decode(data.([]interface{})[1].([]byte))
+    decoded, _ = resq.Decode(data.([]interface{})[1].([]byte))
     return queue_key, decoded
 }
 
 // Decode unmarshals byte array returned from Redis to a map instance
-func (resq *ResQ) Decode(data []byte) map[string]interface{}{
+func (resq *ResQ) Decode(data []byte) (map[string]interface{}, error) {
     var decoded map[string]interface{}
     if err := json.Unmarshal(data, &decoded); err != nil{
-        return decoded
+        return decoded, err
     }
-    return decoded
+    return decoded, nil
 }
 
-// Encode marshalls map instance to ites string representation
-func (resq *ResQ) Encode(item interface{}) string{
+// Encode marshalls map instance to its string representation
+func (resq *ResQ) Encode(item interface{}) (string, error) {
     b, err := json.Marshal(item)
     if err != nil{
-        return ""
+        return "", err
     }
-    return string(b)
+    return string(b), nil
 }
 
 // Size returns the size of the given message queue "resq:queue:%s" on Redis
@@ -270,10 +274,16 @@ func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
     }
 
     key := strconv.FormatInt(datetime, 10)
-    _, err := conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), resq.Encode(item))
+    itemString, err := resq.Encode(item)
+    if err != nil {
+        return err
+    }
+
+    _, err = conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), itemString)
     if err != nil {
         return errors.New("Invalid RPUSH response")
     }
+
     _, err = conn.Do("ZADD", WATCHED_DELAYED_QUEUE_SCHEDULE, datetime, datetime)
     if err != nil {
         err = errors.New("Invalid ZADD response")
@@ -370,7 +380,7 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
     if err != nil {
         return res
     }
-    res = resq.Decode(data)
+    res, _ = resq.Decode(data)
     llen, err := conn.Do("LLEN", key)
     if llen == nil || err != nil {
         return res
