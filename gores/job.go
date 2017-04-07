@@ -8,8 +8,17 @@ import (
 	"github.com/deckarep/golang-set"
 )
 
-// Job represents a job that needs to be executed
-type Job struct {
+// Job is the interface that represents a job involved in Gores
+type Job interface {
+	String() string
+	PerformTask(*map[string]interface{}) error
+	Retry(map[string]interface{}) bool
+	Failed()
+	Processed()
+}
+
+// job represents a job that needs to be executed
+type job struct {
 	queue            string
 	payload          map[string]interface{}
 	resq             *ResQ
@@ -18,7 +27,7 @@ type Job struct {
 }
 
 // NewJob initilizes a new job object
-func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker string) *Job {
+func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker string) Job {
 	var timestamp int64
 	_, ok := payload["Enqueue_timestamp"]
 	if !ok {
@@ -29,7 +38,7 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
 		// So we first need to do a type conversion to float64
 		timestamp = int64(payload["Enqueue_timestamp"].(float64))
 	}
-	return &Job{
+	return &job{
 		queue:            queue,
 		payload:          payload,
 		resq:             resq,
@@ -39,13 +48,13 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
 }
 
 // String returns the string representation of the job object
-func (job *Job) String() string {
+func (job *job) String() string {
 	res := fmt.Sprintf("Job{%s}|%s", job.queue, job.payload["Name"])
 	return res
 }
 
 // PerformTask executes the job, given the mapper of corresponsing worker
-func (job *Job) PerformTask(tasks *map[string]interface{}) error {
+func (job *job) PerformTask(tasks *map[string]interface{}) error {
 	structName := job.payload["Name"].(string)
 	args := job.payload["Args"].(map[string]interface{})
 	metadata := make(map[string]interface{})
@@ -82,7 +91,7 @@ func (job *Job) PerformTask(tasks *map[string]interface{}) error {
 }
 
 // Retry enqueues the failed job back to Redis queue
-func (job *Job) Retry(payload map[string]interface{}) bool {
+func (job *job) Retry(payload map[string]interface{}) bool {
 	_, toRetry := job.payload["Retry"]
 	retryEvery := job.payload["Retry_every"]
 	if !toRetry || retryEvery == nil {
@@ -92,7 +101,7 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
 	now := job.resq.CurrentTime()
 	retryAt := now + int64(retryEvery.(float64))
 	//log.Printf("retry_at: %d\n", retry_at)
-	err := job.resq.Enqueue_at(retryAt, payload)
+	err := job.resq.EnqueueAt(retryAt, payload)
 	if err != nil {
 		return false
 	}
@@ -100,19 +109,19 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
 }
 
 // Failed update the state of the job to be failed
-func (job *Job) Failed() {
+func (job *job) Failed() {
 	NewStat("failed", job.resq).Incr()
 	NewStat(fmt.Sprintf("failed:%s", job.String()), job.resq).Incr()
 }
 
 // Processed updates the state of job to be processed
-func (job *Job) Processed() {
+func (job *job) Processed() {
 	NewStat("processed", job.resq).Incr()
 	NewStat(fmt.Sprintf("processed:%s", job.String()), job.resq).Incr()
 }
 
 // ReserveJob uses BLPOP command to fetch job from Redis
-func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) *Job {
+func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) Job {
 	queue, payload := resq.BlockPop(queues)
 	if payload != nil {
 		return NewJob(queue, payload, resq, workerID)

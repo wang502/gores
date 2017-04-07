@@ -15,7 +15,7 @@ var workerIDChan chan string
 type Dispatcher struct {
 	resq        *ResQ
 	maxWorkers  int
-	jobChannel  chan *Job
+	jobChannel  chan Job
 	doneChannel chan int
 	queues      mapset.Set
 	timeout     int
@@ -23,15 +23,15 @@ type Dispatcher struct {
 
 // NewDispatcher creates Dispatcher instance
 func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher {
-	if resq == nil || config.MAX_WORKERS <= 0 {
+	if resq == nil || config.MaxWorkers <= 0 {
 		log.Println("Invalid number of workers to initialize Dispatcher")
 		return nil
 	}
-	workerIDChan = make(chan string, config.MAX_WORKERS)
+	workerIDChan = make(chan string, config.MaxWorkers)
 	return &Dispatcher{
 		resq:       resq,
-		maxWorkers: config.MAX_WORKERS,
-		jobChannel: make(chan *Job, config.MAX_WORKERS),
+		maxWorkers: config.MaxWorkers,
+		jobChannel: make(chan Job, config.MaxWorkers),
 		queues:     queues,
 		timeout:    config.DispatcherTimeout,
 	}

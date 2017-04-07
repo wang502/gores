@@ -97,7 +97,7 @@ func (worker *Worker) RegisterWorker() error {
 		return errors.New("Redis pool's connection is nil")
 	}
 
-	_, err := conn.Do("SADD", WATCHED_WORKERS, worker.String())
+	_, err := conn.Do("SADD", watchedWorkers, worker.String())
 	if err != nil {
 		err = errors.New("ERROR Register Wroker")
 	}
@@ -112,7 +112,7 @@ func (worker *Worker) UnregisterWorker() error {
 		return errors.New("Redis pool's connection is nil")
 	}
 
-	_, err := conn.Do("SREM", WATCHED_WORKERS, worker.String())
+	_, err := conn.Do("SREM", watchedWorkers, worker.String())
 	if err != nil {
 		err = errors.New("ERROR Unregsiter Worker")
 	}
@@ -128,14 +128,14 @@ func (worker *Worker) UnregisterWorker() error {
 }
 
 // PruneDeadWorkers delets the worker information
-func (this *Worker) PruneDeadWorkers() error {
-	allWorkers := this.All(this.resq)
-	allPids := this.WorkerPids()
+func (worker *Worker) PruneDeadWorkers() error {
+	allWorkers := worker.All(worker.resq)
+	allPids := worker.WorkerPids()
 	for _, w := range allWorkers {
 		idTokens := strings.Split(w.id, ":")
 		host := idTokens[0]
 		wPid := idTokens[1]
-		if strings.Compare(host, this.hostname) != 0 {
+		if strings.Compare(host, worker.hostname) != 0 {
 			continue
 		}
 		if allPids.Contains(wPid) {
@@ -182,7 +182,7 @@ func (worker *Worker) Find(workerID string, resq *ResQ) *Worker {
 
 // Exists checks whether the worker with given id exists
 func (worker *Worker) Exists(workerID string) int64 {
-	reply, err := worker.resq.pool.Get().Do("SISMEMBER", WATCHED_WORKERS, workerID)
+	reply, err := worker.resq.pool.Get().Do("SISMEMBER", watchedWorkers, workerID)
 	if err != nil || reply == nil {
 		return 0
 	}

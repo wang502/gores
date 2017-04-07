@@ -7,22 +7,20 @@ import (
 	"log"
 	"os"
 	"strconv"
-	_ "strings"
 	"time"
 
 	"github.com/deckarep/golang-set"
 	"github.com/garyburd/redigo/redis"
-	_ "gopkg.in/oleiade/reflections.v1"
 )
 
 // redis-cli -h host -p port -a password
 
 // ResQ represents the main Gores object that stores all configurations and connection with Redis
 type ResQ struct {
-	pool            *redis.Pool
-	_watched_queues mapset.Set
-	Host            string
-	config          *Config
+	pool          *redis.Pool
+	watchedQueues mapset.Set
+	Host          string
+	config        *Config
 }
 
 // NewResQ creates a new ResQ instance given the pointer to config object
@@ -30,9 +28,9 @@ func NewResQ(config *Config) *ResQ {
 	var pool *redis.Pool
 	var host string
 
-	if len(config.REDISURL) != 0 && len(config.REDIS_PW) != 0 {
-		pool = initPoolFromString(config.REDISURL, config.REDIS_PW)
-		host = config.REDISURL
+	if len(config.RedisURL) != 0 && len(config.RedisPassword) != 0 {
+		pool = initPoolFromString(config.RedisURL, config.RedisPassword)
+		host = config.RedisURL
 	} else {
 		pool = initPool()
 		host = os.Getenv("REDISURL")
@@ -42,10 +40,10 @@ func NewResQ(config *Config) *ResQ {
 		return nil
 	}
 	return &ResQ{
-		pool:            pool,
-		_watched_queues: mapset.NewSet(),
-		Host:            host,
-		config:          config,
+		pool:          pool,
+		watchedQueues: mapset.NewSet(),
+		Host:          host,
+		config:        config,
 	}
 }
 
@@ -57,10 +55,10 @@ func NewResQFromString(config *Config, server string, password string) *ResQ {
 		return nil
 	}
 	return &ResQ{
-		pool:            pool,
-		_watched_queues: mapset.NewSet(),
-		Host:            os.Getenv("REDISURL"),
-		config:          config,
+		pool:          pool,
+		watchedQueues: mapset.NewSet(),
+		Host:          os.Getenv("REDISURL"),
+		config:        config,
 	}
 }
 
@@ -131,13 +129,13 @@ func (resq *ResQ) push(queue string, item interface{}) error {
 		return err
 	}
 
-	_, err = conn.Do("RPUSH", fmt.Sprintf(QUEUE_PREFIX, queue), itemString)
+	_, err = conn.Do("RPUSH", fmt.Sprintf(queuePrefix, queue), itemString)
 	if err != nil {
 		err = errors.New("Invalid Redis RPUSH Response")
 		return err
 	}
 
-	return resq.watch_queue(queue)
+	return resq.watchQueue(queue)
 }
 
 // Pop calls "LPOP" command on Redis message queue
@@ -151,7 +149,7 @@ func (resq *ResQ) Pop(queue string) map[string]interface{} {
 		return decoded
 	}
 
-	reply, err := conn.Do("LPOP", fmt.Sprintf(QUEUE_PREFIX, queue))
+	reply, err := conn.Do("LPOP", fmt.Sprintf(queuePrefix, queue))
 	if err != nil || reply == nil {
 		return decoded
 	}
@@ -179,10 +177,10 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
 	it := queues.Iterator()
 	i := 0
 	for elem := range it.C {
-		queuesSlice[i] = fmt.Sprintf(QUEUE_PREFIX, elem)
+		queuesSlice[i] = fmt.Sprintf(queuePrefix, elem)
 		i++
 	}
-	redisArgs := append(queuesSlice, BLPOP_MAX_BLOCK_TIME)
+	redisArgs := append(queuesSlice, blpopMaxBlockTime)
 	data, err := conn.Do("BLPOP", redisArgs...)
 
 	if data == nil || err != nil {
@@ -221,7 +219,7 @@ func (resq *ResQ) Size(queue string) int64 {
 		return 0
 	}
 
-	size, err := conn.Do("LLEN", fmt.Sprintf(QUEUE_PREFIX, queue))
+	size, err := conn.Do("LLEN", fmt.Sprintf(queuePrefix, queue))
 	if size == nil || err != nil {
 		return 0
 	}
@@ -243,8 +241,8 @@ func (resq *ResQ) SizeOfQueue(key string) int64 {
 	return size.(int64)
 }
 
-func (resq *ResQ) watch_queue(queue string) error {
-	if resq._watched_queues.Contains(queue) {
+func (resq *ResQ) watchQueue(queue string) error {
+	if resq.watchedQueues.Contains(queue) {
 		return nil
 	}
 	conn := resq.pool.Get()
@@ -252,15 +250,15 @@ func (resq *ResQ) watch_queue(queue string) error {
 		return errors.New("Redis pool's connection is nil")
 	}
 
-	_, err := conn.Do("SADD", WATCHED_QUEUES, queue)
+	_, err := conn.Do("SADD", watchedQueues, queue)
 	if err != nil {
 		err = errors.New("watch_queue() SADD Error")
 	}
 	return err
 }
 
-// Enqueue_at puts the job to Redis delayed queue for the given timestamp
-func (resq *ResQ) Enqueue_at(datetime int64, item interface{}) error {
+// EnqueueAt puts the job to Redis delayed queue for the given timestamp
+func (resq *ResQ) EnqueueAt(datetime int64, item interface{}) error {
 	err := resq.delayedPush(datetime, item)
 	if err != nil {
 		return err
@@ -280,12 +278,12 @@ func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
 		return err
 	}
 
-	_, err = conn.Do("RPUSH", fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, key), itemString)
+	_, err = conn.Do("RPUSH", fmt.Sprintf(delayedQueuePrefix, key), itemString)
 	if err != nil {
 		return errors.New("Invalid RPUSH response")
 	}
 
-	_, err = conn.Do("ZADD", WATCHED_DELAYED_QUEUE_SCHEDULE, datetime, datetime)
+	_, err = conn.Do("ZADD", watchedSchedules, datetime, datetime)
 	if err != nil {
 		err = errors.New("Invalid ZADD response")
 	}
@@ -302,7 +300,7 @@ func (resq *ResQ) Queues() []string {
 		return queues
 	}
 
-	data, _ := conn.Do("SMEMBERS", WATCHED_QUEUES)
+	data, _ := conn.Do("SMEMBERS", watchedQueues)
 	for _, q := range data.([]interface{}) {
 		queues = append(queues, string(q.([]byte)))
 	}
@@ -312,7 +310,7 @@ func (resq *ResQ) Queues() []string {
 // Workers retruns a slice of existing worker names
 func (resq *ResQ) Workers() []string {
 	conn := resq.pool.Get()
-	data, err := conn.Do("SMEMBERS", WATCHED_WORKERS)
+	data, err := conn.Do("SMEMBERS", watchedWorkers)
 	if data == nil || err != nil {
 		return nil
 	}
@@ -326,7 +324,7 @@ func (resq *ResQ) Workers() []string {
 
 // Info returns the information of the Redis queue
 func (resq *ResQ) Info() map[string]interface{} {
-	var pending int64 = 0
+	var pending int64
 	for _, q := range resq.Queues() {
 		pending += resq.Size(q)
 	}
@@ -350,7 +348,7 @@ func (resq *ResQ) NextDelayedTimestamp() int64 {
 	}
 
 	key := resq.CurrentTime()
-	data, err := conn.Do("ZRANGEBYSCORE", WATCHED_DELAYED_QUEUE_SCHEDULE, "-inf", key)
+	data, err := conn.Do("ZRANGEBYSCORE", watchedSchedules, "-inf", key)
 	if err != nil || data == nil {
 		return 0
 	}
@@ -370,7 +368,7 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 	var res map[string]interface{}
 
 	timeStr := strconv.FormatInt(timestamp, 10)
-	key := fmt.Sprintf(DEPLAYED_QUEUE_PREFIX, timeStr)
+	key := fmt.Sprintf(delayedQueuePrefix, timeStr)
 
 	conn := resq.pool.Get()
 	if conn == nil {
@@ -393,7 +391,7 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 	}
 	if llen.(int64) == 0 {
 		conn.Do("DEL", key)
-		conn.Do("ZREM", WATCHED_DELAYED_QUEUE_SCHEDULE, timestamp)
+		conn.Do("ZREM", watchedSchedules, timestamp)
 	}
 	return res
 }
