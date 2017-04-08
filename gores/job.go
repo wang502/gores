@@ -91,7 +91,7 @@ func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) *Job {
 	return nil
 }
 
-// ExecuteJob executes the job, given the mapper of corresponsing worker
+// ExecuteJob executes the job, given the mapper of corresponding worker
 func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
 	structName := job.payload["Name"].(string)
 	args := job.payload["Args"].(map[string]interface{})

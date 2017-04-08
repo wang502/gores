@@ -13,7 +13,7 @@ import (
 	"github.com/wang502/gores/gores"
 )
 
-func Produce(config *gores.Config) {
+func produce(config *gores.Config) {
 	item := map[string]interface{}{
 		"Name":  "Rectangle",
 		"Queue": "TestJob",
@@ -34,7 +34,7 @@ func Produce(config *gores.Config) {
 	}
 }
 
-func Consume(config *gores.Config) {
+func consume(config *gores.Config) {
 	tasks := map[string]interface{}{
 		"Item":      tasks.PrintItem,
 		"Rectangle": tasks.CalculateArea,
@@ -45,7 +45,7 @@ func Consume(config *gores.Config) {
 	}
 }
 
-func GetInfo(config *gores.Config) map[string]interface{} {
+func getInfo(config *gores.Config) map[string]interface{} {
 	resq := gores.NewResQ(config)
 	if resq == nil {
 		log.Fatalf("resq is nil")
@@ -68,13 +68,13 @@ func main() {
 	if strings.Compare("produce", *option) == 0 {
 		n, _ := strconv.Atoi(*number)
 		for i := 0; i < n-1; i++ {
-			Produce(config)
+			produce(config)
 		}
-		Produce(config)
+		produce(config)
 	} else if strings.Compare("consume", *option) == 0 {
-		Consume(config)
+		consume(config)
 	} else if strings.Compare("info", *option) == 0 {
-		info := GetInfo(config)
+		info := getInfo(config)
 
 		fmt.Println("Gores Info: ")
 		for k, v := range info {

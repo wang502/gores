@@ -85,11 +85,14 @@ func TestStat(t *testing.T) {
 
 	ok = stat.Decr()
 	if ok == 0 {
-		t.Errorf("Stat Decr() Error")
+		t.Errorf("Stat Decr() error")
 	}
 	if stat.Get() != v {
 		t.Errorf("Stat Decr() did not decrement")
 	}
 
 	ok = stat.Clear()
+	if ok == 0 {
+		t.Errorf("Stat Clear() error")
+	}
 }

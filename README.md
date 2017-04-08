@@ -1,5 +1,5 @@
 # Gores
-[![Build Status](https://travis-ci.com/wang502/gores.svg?token=KeHkjMsksZ2RWDDg6h5k&branch=master)](https://travis-ci.org/wang502/gores)
+[![Build Status](https://travis-ci.com/wang502/gores.svg?token=KeHkjMsksZ2RWDDg6h5k&branch=master)](https://travis-ci.org/wang502/gores) [![Go Report Card](https://goreportcard.com/badge/github.com/wang502/gores)](https://goreportcard.com/report/github.com/wang502/gores)
 An asynchronous job execution system based on Redis
 
 ## Installation
@@ -24,19 +24,19 @@ $ ./src/redis-server
 Add a config.json in your project folder
 ```json
 {
-  "REDISURL": "127.0.0.1:6379",
-  "REDIS_PW": "mypassword",
-  "BLPOP_MAX_BLOCK_TIME" : 1,
-  "MAX_WORKERS": 2,
+  "RedisURL": "127.0.0.1:6379",
+  "RedisPassword": "mypassword",
+  "BlpopMaxBlockTime" : 1,
+  "MaxWorkers": 2,
   "Queues": ["queue1", "queue2"],
   "DispatcherTimeout": 5,
   "WorkerTimeout": 5
 }
 ```
-- ***REDISURL***: Redis server address. If you run in a local Redis, the dafault host is ```127.0.0.1:6379```
-- ***REDIS_PW***: Redis password. If the password is not set, then password can be any string.
-- ***BLPOP_MAX_BLOCK_TIME***: Blocking time when calling BLPOP command in Redis.
-- ***MAX_WORKERS***: Maximum number of concurrent workers, each worker is a separate goroutine that execute specific task on the fetched item.
+- ***RedisURL***: Redis server address. If you run in a local Redis, the dafault host is ```127.0.0.1:6379```
+- ***RedisPassword***: Redis password. If the password is not set, then password can be any string.
+- ***BlpopMaxBlockTime***: Blocking time when calling BLPOP command in Redis.
+- ***MaxWorkers***: Maximum number of concurrent workers, each worker is a separate goroutine that execute specific task on the fetched item.
 - ***Queues***: Array of queue names on Redis message broker.
 - ***DispatcherTimeout***: Duration dispatcher will wait to dispatch new job before quitting.
 - ***WorkerTimeout***: Duration worker will wait to process new job before quitting.

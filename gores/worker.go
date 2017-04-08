@@ -68,7 +68,7 @@ func NewWorkerFromString(config *Config, server string, password string, queues 
 	}
 }
 
-// ResQ returns the pointer to embeded ResQ object
+// ResQ returns the pointer to embedded ResQ object
 func (worker *Worker) ResQ() *ResQ {
 	/* export access to **resq** identifier to other package*/
 	return worker.resq
