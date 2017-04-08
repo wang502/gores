@@ -15,7 +15,7 @@ var workerIDChan chan string
 type Dispatcher struct {
 	resq        *ResQ
 	maxWorkers  int
-	jobChannel  chan Job
+	jobChannel  chan *Job
 	doneChannel chan int
 	queues      mapset.Set
 	timeout     int
@@ -31,7 +31,7 @@ func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher {
 	return &Dispatcher{
 		resq:       resq,
 		maxWorkers: config.MaxWorkers,
-		jobChannel: make(chan Job, config.MaxWorkers),
+		jobChannel: make(chan *Job, config.MaxWorkers),
 		queues:     queues,
 		timeout:    config.DispatcherTimeout,
 	}

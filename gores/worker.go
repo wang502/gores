@@ -234,7 +234,7 @@ func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}
 	for {
 		select {
 		case job := <-dispatcher.jobChannel:
-			if err := job.PerformTask(tasks); err != nil {
+			if err := ExecuteJob(job, tasks); err != nil {
 				log.Fatalf("ERROR Perform Job, %s", err)
 			}
 		case <-time.After(time.Second * time.Duration(worker.timeout)):
