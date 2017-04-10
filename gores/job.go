@@ -50,9 +50,9 @@ func (job *Job) Payload() map[string]interface{} {
 
 // Retry enqueues the failed job back to Redis queue
 func (job *Job) Retry(payload map[string]interface{}) bool {
-	_, toRetry := job.payload["Retry"]
-	retryEvery := job.payload["Retry_every"]
-	if !toRetry || retryEvery == nil {
+	_, ok1 := job.payload["Retry"]
+	retryEvery, ok2 := job.payload["Retry_every"]
+	if !ok1 || !ok2 {
 		return false
 	}
 
@@ -63,6 +63,7 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
 	if err != nil {
 		return false
 	}
+
 	return true
 }
 
@@ -92,8 +93,19 @@ func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) *Job {
 
 // ExecuteJob executes the job, given the mapper of corresponding worker
 func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
-	jobName := job.payload["Name"].(string)
-	args := job.payload["Args"].(map[string]interface{})
+	// check whether payload is valid
+	jobName, ok1 := job.payload["Name"]
+	jobArgs, ok2 := job.payload["Args"]
+	if !ok1 || !ok2 {
+		return fmt.Errorf("execute job failed: job payload has no key %s or %s", "Name", "Args")
+	}
+
+	name, ok1 := jobName.(string)
+	args, ok2 := jobArgs.(map[string]interface{})
+	if !ok1 || !ok2 {
+		return fmt.Errorf("execute job failed: job args is not a map or job name is not a string")
+	}
+
 	metadata := make(map[string]interface{})
 	for k, v := range args {
 		metadata[k] = v
@@ -105,7 +117,7 @@ func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
 	now := time.Now().Unix()
 	metadata["perfomed_timestamp"] = now
 
-	task := (*tasks)[jobName]
+	task := (*tasks)[name]
 	if task == nil {
 		return fmt.Errorf("execute task failed: task with name %s is not registered in tasks map", jobName)
 	}
@@ -119,7 +131,7 @@ func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
 			metadata["retried"] = false
 		}
 		job.Failed()
-		// deal with metadata
+		// deal with metadata here
 		return fmt.Errorf("execute job failed: %s", err)
 	}
 	job.Processed()

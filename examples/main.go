@@ -9,11 +9,13 @@ import (
 
 	"strconv"
 
+	"errors"
+
 	"github.com/wang502/gores/examples/tasks"
 	"github.com/wang502/gores/gores"
 )
 
-func produce(config *gores.Config) {
+func produce(config *gores.Config) error {
 	item := map[string]interface{}{
 		"Name":  "Rectangle",
 		"Queue": "TestJob",
@@ -26,32 +28,41 @@ func produce(config *gores.Config) {
 
 	resq := gores.NewResQ(config)
 	if resq == nil {
-		log.Fatalf("resq is nil")
+		return errors.New("resq is nil")
 	}
+
 	err := resq.Enqueue(item)
 	if err != nil {
-		log.Fatalf("ERROR Enqueue item to ResQ")
+		return fmt.Errorf("produce job failed: %s", err)
 	}
+
+	return nil
 }
 
-func consume(config *gores.Config) {
+func consume(config *gores.Config) error {
 	tasks := map[string]interface{}{
 		"Item":      tasks.PrintItem,
 		"Rectangle": tasks.CalculateArea,
 	}
 	err := gores.Launch(config, &tasks)
 	if err != nil {
-		log.Fatalf("ERROR launching consumer: %s\n", err)
+		return fmt.Errorf("consume item failed: %s", err)
 	}
+
+	return nil
 }
 
-func getInfo(config *gores.Config) map[string]interface{} {
+func getInfo(config *gores.Config) (map[string]interface{}, error) {
 	resq := gores.NewResQ(config)
 	if resq == nil {
 		log.Fatalf("resq is nil")
 	}
-	info := resq.Info()
-	return info
+	info, err := resq.Info()
+	if err != nil {
+		return nil, fmt.Errorf("Gores get info failed: %s", err)
+	}
+
+	return info, nil
 }
 
 func main() {
@@ -62,19 +73,33 @@ func main() {
 
 	config, err := gores.InitConfig(*configPath)
 	if err != nil {
-		log.Fatalf("Cannot read config file: %s", err)
+		log.Fatal(err)
 	}
 
 	if strings.Compare("produce", *option) == 0 {
 		n, _ := strconv.Atoi(*number)
 		for i := 0; i < n-1; i++ {
-			produce(config)
+			err = produce(config)
+			if err != nil {
+				log.Printf("%s", err)
+			}
 		}
-		produce(config)
+		err = produce(config)
+		if err != nil {
+			log.Printf("%s", err)
+		}
+
 	} else if strings.Compare("consume", *option) == 0 {
-		consume(config)
+		err = consume(config)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 	} else if strings.Compare("info", *option) == 0 {
-		info := getInfo(config)
+		info, err := getInfo(config)
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		fmt.Println("Gores Info: ")
 		for k, v := range info {

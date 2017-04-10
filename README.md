@@ -1,5 +1,4 @@
-# Gores
-[![Build Status](https://travis-ci.com/wang502/gores.svg?token=KeHkjMsksZ2RWDDg6h5k&branch=master)](https://travis-ci.org/wang502/gores) [![Go Report Card](https://goreportcard.com/badge/github.com/wang502/gores)](https://goreportcard.com/report/github.com/wang502/gores)
+# Gores [![Build Status](https://travis-ci.com/wang502/gores.svg?token=KeHkjMsksZ2RWDDg6h5k&branch=master)](https://travis-ci.org/wang502/gores) [![Go Report Card](https://goreportcard.com/badge/github.com/wang502/gores)](https://goreportcard.com/report/github.com/wang502/gores)
 An asynchronous job execution system based on Redis
 
 ## Installation
@@ -121,7 +120,10 @@ resq := gores.NewResQ(config)
 if resq == nil {
     log.Fatalf("resq is nil")
 }
-info := resq.Info()
+info, err := resq.Info()
+if err != nil {
+  log.Fatal("%s", err)
+}
 for k, v := range info {
     switch v.(type) {
     case string:

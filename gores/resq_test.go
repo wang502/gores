@@ -60,7 +60,11 @@ func TestResQSize(t *testing.T) {
 		t.Errorf("ResQ Push returned ERROR")
 	}
 
-	size := resq.Size("TestItem")
+	size, err := resq.Size("TestItem")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
 	if size != 1 {
 		t.Errorf("ResQ Size() expected to return 1, but returned %d", size)
 	}

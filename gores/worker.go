@@ -138,9 +138,11 @@ func (worker *Worker) PruneDeadWorkers() error {
 		if strings.Compare(host, worker.hostname) != 0 {
 			continue
 		}
+
 		if allPids.Contains(wPid) {
 			continue
 		}
+
 		fmt.Printf("Pruning dead worker: %s\n", w.String())
 		if w != nil {
 			if err := w.UnregisterWorker(); err != nil {
@@ -148,6 +150,7 @@ func (worker *Worker) PruneDeadWorkers() error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -158,6 +161,7 @@ func (worker *Worker) All(resq *ResQ) []*Worker {
 	for i, w := range workerIDs {
 		allWorkers[i] = worker.Find(w, resq)
 	}
+
 	return allWorkers
 }
 
@@ -179,6 +183,7 @@ func (worker *Worker) Find(workerID string, resq *ResQ) *Worker {
 		newWorker = NewWorker(config, qSet, goroutineID)
 		newWorker.id = workerID
 	}
+
 	return newWorker
 }
 
@@ -188,6 +193,7 @@ func (worker *Worker) Exists(workerID string) int64 {
 	if err != nil || reply == nil {
 		return 0
 	}
+
 	return reply.(int64)
 }
 
@@ -199,11 +205,13 @@ func (worker *Worker) WorkerPids() mapset.Set {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	outLines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	inSlice := make([]interface{}, len(outLines)-1) // skip first row
 	for i, line := range outLines[1:] {
 		inSlice[i] = strings.Split(strings.TrimSpace(line), " ")[0] // pid at index 0
 	}
+
 	return mapset.NewSetFromSlice(inSlice)
 }
 

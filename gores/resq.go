@@ -39,6 +39,7 @@ func NewResQ(config *Config) *ResQ {
 		log.Printf("ERROR Initializing Redis Pool\n")
 		return nil
 	}
+
 	return &ResQ{
 		pool:          pool,
 		watchedQueues: mapset.NewSet(),
@@ -84,6 +85,7 @@ func makeRedisPool(server string, password string) *redis.Pool {
 			return err
 		},
 	}
+
 	return pool
 }
 
@@ -206,6 +208,7 @@ func (resq *ResQ) Decode(data []byte) (map[string]interface{}, error) {
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return decoded, fmt.Errorf("decode data failed: %s", err)
 	}
+
 	return decoded, nil
 }
 
@@ -215,22 +218,23 @@ func (resq *ResQ) Encode(item interface{}) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("encode data failed: %s", err)
 	}
+
 	return string(b), nil
 }
 
 // Size returns the size of the given message queue "resq:queue:%s" on Redis
-func (resq *ResQ) Size(queue string) int64 {
+func (resq *ResQ) Size(queue string) (int64, error) {
 	conn := resq.pool.Get()
 	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return 0
+		return 0, errors.New("ResQ find queue size failed: Redis pool's connection is nil")
 	}
 
 	size, err := conn.Do("LLEN", fmt.Sprintf(queuePrefix, queue))
 	if size == nil || err != nil {
-		return 0
+		return 0, fmt.Errorf("ResQ find queue size failed: %s", err)
 	}
-	return size.(int64)
+
+	return size.(int64), nil
 }
 
 // SizeOfQueue return the size of any given queue on Redis
@@ -245,6 +249,7 @@ func (resq *ResQ) SizeOfQueue(key string) int64 {
 	if size == nil || err != nil {
 		return 0
 	}
+
 	return size.(int64)
 }
 
@@ -314,6 +319,7 @@ func (resq *ResQ) Queues() []string {
 	for _, q := range data.([]interface{}) {
 		queues = append(queues, string(q.([]byte)))
 	}
+
 	return queues
 }
 
@@ -329,14 +335,20 @@ func (resq *ResQ) Workers() []string {
 	for i, w := range data.([]interface{}) {
 		workers[i] = string(w.([]byte))
 	}
+
 	return workers
 }
 
 // Info returns the information of the Redis queue
-func (resq *ResQ) Info() map[string]interface{} {
+func (resq *ResQ) Info() (map[string]interface{}, error) {
 	var pending int64
 	for _, q := range resq.Queues() {
-		pending += resq.Size(q)
+		num, err := resq.Size(q)
+		if err != nil {
+			return nil, fmt.Errorf("ResQ info failed: %s", err)
+		}
+
+		pending += num
 	}
 
 	info := make(map[string]interface{})
@@ -346,7 +358,8 @@ func (resq *ResQ) Info() map[string]interface{} {
 	info["workers"] = len(resq.Workers())
 	info["failed"] = NewStat("falied", resq).Get()
 	info["host"] = resq.Host
-	return info
+
+	return info, nil
 }
 
 // NextDelayedTimestamp returns the next delayed timestamps
