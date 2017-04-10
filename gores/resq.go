@@ -107,13 +107,16 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 	*/
 	queue, ok1 := item["Queue"]
 	_, ok2 := item["Args"]
-	var err error
 	if !ok1 || !ok2 {
-		err = errors.New("Unable to enqueue Job map without keys: 'Queue' and 'Args'")
-	} else {
-		err = resq.push(queue.(string), item)
+		return errors.New("enqueue item failed: job item has no key 'Queue' or 'Args'")
 	}
-	return err
+
+	err := resq.push(queue.(string), item)
+	if err != nil {
+		return fmt.Errorf("enqueue item failed: %s", err)
+	}
+
+	return nil
 }
 
 // Helper function to put job item to Redis message queue
@@ -121,21 +124,25 @@ func (resq *ResQ) push(queue string, item interface{}) error {
 	conn := resq.pool.Get()
 
 	if conn == nil {
-		return errors.New("Redis pool's connection is nil")
+		return errors.New("push item failed: Redis pool's connection is nil")
 	}
 
 	itemString, err := resq.Encode(item)
 	if err != nil {
-		return err
+		return fmt.Errorf("push item failed: %s", err)
 	}
 
 	_, err = conn.Do("RPUSH", fmt.Sprintf(queuePrefix, queue), itemString)
 	if err != nil {
-		err = errors.New("Invalid Redis RPUSH Response")
-		return err
+		return fmt.Errorf("push item failed: %s", err)
 	}
 
-	return resq.watchQueue(queue)
+	err = resq.watchQueue(queue)
+	if err != nil {
+		return fmt.Errorf("push item failed: %s", err)
+	}
+
+	return nil
 }
 
 // Pop calls "LPOP" command on Redis message queue
@@ -197,7 +204,7 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
 func (resq *ResQ) Decode(data []byte) (map[string]interface{}, error) {
 	var decoded map[string]interface{}
 	if err := json.Unmarshal(data, &decoded); err != nil {
-		return decoded, err
+		return decoded, fmt.Errorf("decode data failed: %s", err)
 	}
 	return decoded, nil
 }
@@ -206,7 +213,7 @@ func (resq *ResQ) Decode(data []byte) (map[string]interface{}, error) {
 func (resq *ResQ) Encode(item interface{}) (string, error) {
 	b, err := json.Marshal(item)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("encode data failed: %s", err)
 	}
 	return string(b), nil
 }
@@ -247,47 +254,50 @@ func (resq *ResQ) watchQueue(queue string) error {
 	}
 	conn := resq.pool.Get()
 	if conn == nil {
-		return errors.New("Redis pool's connection is nil")
+		return errors.New("watch queue failed: Redis conn is nil")
 	}
 
 	_, err := conn.Do("SADD", watchedQueues, queue)
 	if err != nil {
-		err = errors.New("watch_queue() SADD Error")
+		return fmt.Errorf("watch queue failed: %s", err)
 	}
-	return err
+
+	return nil
 }
 
 // EnqueueAt puts the job to Redis delayed queue for the given timestamp
 func (resq *ResQ) EnqueueAt(datetime int64, item interface{}) error {
 	err := resq.delayedPush(datetime, item)
 	if err != nil {
-		return err
+		return fmt.Errorf("enqueue at timestamp failed: %s", err)
 	}
+
 	return nil
 }
 
 func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
 	conn := resq.pool.Get()
 	if conn == nil {
-		return errors.New("Redis pool's connection is nil")
+		return errors.New("delayed push failed: Redis conn is nil")
 	}
 
 	key := strconv.FormatInt(datetime, 10)
 	itemString, err := resq.Encode(item)
 	if err != nil {
-		return err
+		return fmt.Errorf("delayed push failed: %s", err)
 	}
 
 	_, err = conn.Do("RPUSH", fmt.Sprintf(delayedQueuePrefix, key), itemString)
 	if err != nil {
-		return errors.New("Invalid RPUSH response")
+		return fmt.Errorf("delayed push failed: %s", err)
 	}
 
 	_, err = conn.Do("ZADD", watchedSchedules, datetime, datetime)
 	if err != nil {
-		err = errors.New("Invalid ZADD response")
+		return fmt.Errorf("delayed push failed: %s", err)
 	}
-	return err
+
+	return nil
 }
 
 // Queues returns a slice of existing queues' names
@@ -408,7 +418,7 @@ func (resq *ResQ) CurrentTime() int64 {
 func Launch(config *Config, tasks *map[string]interface{}) error {
 	resq := NewResQ(config)
 	if resq == nil {
-		return errors.New("ResQ is nil")
+		return errors.New("ResQ launch failed: ResQ is nil")
 	}
 
 	inSlice := make([]interface{}, len(config.Queues))
@@ -419,8 +429,13 @@ func Launch(config *Config, tasks *map[string]interface{}) error {
 
 	dispatcher := NewDispatcher(resq, config, queuesSet)
 	if dispatcher == nil {
-		return errors.New("Dispatcher is nil")
+		return errors.New("ResQ launch failed: Dispatcher is nil")
 	}
+
 	err := dispatcher.Run(tasks)
-	return err
+	if err != nil {
+		return fmt.Errorf("ResQ launch failed: %s", err)
+	}
+
+	return nil
 }

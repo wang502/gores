@@ -45,7 +45,7 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
 	for i := 0; i < disp.maxWorkers; i++ {
 		worker := NewWorker(config, disp.queues, i+1)
 		if worker == nil {
-			return errors.New("ERROR running worker: worker is nil")
+			return errors.New("run dispatcher failed: worker is nil")
 		}
 		workerID := worker.String()
 		workerIDChan <- workerID
@@ -55,7 +55,7 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
 			defer wg.Done()
 			err := worker.Startup(disp, tasks)
 			if err != nil {
-				log.Fatalf("ERROR startup worker: %s", err)
+				log.Fatalf("run dispatcher failed: %s", err)
 			}
 		}()
 	}

@@ -1,7 +1,6 @@
 package gores
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -93,7 +92,7 @@ func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) *Job {
 
 // ExecuteJob executes the job, given the mapper of corresponding worker
 func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
-	structName := job.payload["Name"].(string)
+	jobName := job.payload["Name"].(string)
 	args := job.payload["Args"].(map[string]interface{})
 	metadata := make(map[string]interface{})
 	for k, v := range args {
@@ -106,14 +105,12 @@ func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
 	now := time.Now().Unix()
 	metadata["perfomed_timestamp"] = now
 
-	var err error
-	task := (*tasks)[structName]
+	task := (*tasks)[jobName]
 	if task == nil {
-		err = errors.New("Task is not registered in tasks map")
-		return err
+		return fmt.Errorf("execute task failed: task with name %s is not registered in tasks map", jobName)
 	}
 	// execute targeted task
-	err = task.(func(map[string]interface{}) error)(args)
+	err := task.(func(map[string]interface{}) error)(args)
 	if err != nil {
 		metadata["failed"] = true
 		if job.Retry(job.payload) {
@@ -123,7 +120,8 @@ func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
 		}
 		job.Failed()
 		// deal with metadata
+		return fmt.Errorf("execute job failed: %s", err)
 	}
 	job.Processed()
-	return err
+	return nil
 }

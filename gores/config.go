@@ -2,7 +2,7 @@ package gores
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
 )
 
@@ -23,13 +23,14 @@ func InitConfig(confPath string) (*Config, error) {
 
 	configFile, err := os.Open(confPath)
 	if err != nil {
-		return &config, err
+		return &config, fmt.Errorf("init config failed: %s", err)
 	}
 
 	decoder := json.NewDecoder(configFile)
 	err = decoder.Decode(&config)
 	if err != nil {
-		return &config, errors.New("ERROR decode config.json")
+		return &config, fmt.Errorf("init config failed: %s", err)
 	}
+
 	return &config, nil
 }

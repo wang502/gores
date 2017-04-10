@@ -94,12 +94,12 @@ func (worker *Worker) String() string {
 func (worker *Worker) RegisterWorker() error {
 	conn := worker.resq.pool.Get()
 	if conn == nil {
-		return errors.New("Redis pool's connection is nil")
+		return errors.New("RegisterWorker failed: Redis pool's connection is nil")
 	}
 
 	_, err := conn.Do("SADD", watchedWorkers, worker.String())
 	if err != nil {
-		err = errors.New("ERROR Register Wroker")
+		return fmt.Errorf("RegisterWorker failed: %s", err)
 	}
 	worker.started = time.Now().Unix()
 	return err
@@ -109,12 +109,12 @@ func (worker *Worker) RegisterWorker() error {
 func (worker *Worker) UnregisterWorker() error {
 	conn := worker.resq.pool.Get()
 	if conn == nil {
-		return errors.New("Redis pool's connection is nil")
+		return errors.New("UnregisterWorker failed: Redis pool's connection is nil")
 	}
 
 	_, err := conn.Do("SREM", watchedWorkers, worker.String())
 	if err != nil {
-		err = errors.New("ERROR Unregsiter Worker")
+		return fmt.Errorf("UnregisterWorker failed: %s", err)
 	}
 	worker.started = 0
 
@@ -124,7 +124,7 @@ func (worker *Worker) UnregisterWorker() error {
 	fStat := NewStat(fmt.Sprintf("falied:%s", worker.String()), worker.resq)
 	fStat.Clear()
 
-	return err
+	return nil
 }
 
 // PruneDeadWorkers delets the worker information
@@ -143,7 +143,9 @@ func (worker *Worker) PruneDeadWorkers() error {
 		}
 		fmt.Printf("Pruning dead worker: %s\n", w.String())
 		if w != nil {
-			w.UnregisterWorker()
+			if err := w.UnregisterWorker(); err != nil {
+				return fmt.Errorf("PruneDeadWorkers failed: %s", err)
+			}
 		}
 	}
 	return nil
@@ -215,18 +217,20 @@ func (worker *Worker) Size() int {
 func (worker *Worker) Startup(dispatcher *Dispatcher, tasks *map[string]interface{}) error {
 	err := worker.PruneDeadWorkers()
 	if err != nil {
-		err = errors.New("Satrtup() ERROR when PruneDeadWorkers()")
-		return err
+		return fmt.Errorf("startup failed: %s", err)
 	}
 	err = worker.RegisterWorker()
 	if err != nil {
-		err = errors.New("Startup() ERROR when RegisterWorker()")
-		return err
+		return fmt.Errorf("startup failed: %s", err)
 	}
 	worker.work(dispatcher, tasks)
 
 	err = worker.UnregisterWorker()
-	return err
+	if err != nil {
+		return fmt.Errorf("startup failed: %s", err)
+	}
+
+	return nil
 }
 
 // work keeps fetching jobs from dispatcher and execute tasks until time out
