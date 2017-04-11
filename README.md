@@ -91,6 +91,7 @@ func CalculateArea(args map[string]interface{}) error {
         err = errors.New("Map has no required attributes")
         return err
     }
+    
     fmt.Printf("The area is %d\n", int(length.(float64)) * int(width.(float64)))
     return err
 }
@@ -120,10 +121,12 @@ resq := gores.NewResQ(config)
 if resq == nil {
     log.Fatalf("resq is nil")
 }
+
 info, err := resq.Info()
 if err != nil {
-  log.Fatal("%s", err)
+  log.Fatal(err)
 }
+
 for k, v := range info {
     switch v.(type) {
     case string:

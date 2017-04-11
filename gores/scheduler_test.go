@@ -49,7 +49,10 @@ func TestHandleDelayedItems(t *testing.T) {
 		t.Errorf("Scheduler worker did not handle delayed items")
 	}
 
-	queueSize := resq.Size(item["Queue"].(string))
+	queueSize, err := resq.Size(item["Queue"].(string))
+	if err != nil {
+		t.Errorf("%s", err)
+	}
 	if queueSize != 1 {
 		t.Errorf("Scheduler worker did not enqueue delayed item to resq:queue:%s", item["Queue"].(string))
 	}
