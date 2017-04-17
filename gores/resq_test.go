@@ -43,12 +43,18 @@ func TestResQPushPop(t *testing.T) {
 		t.Errorf("ResQ Push returned ERROR")
 	}
 
-	ret1 := resq.Pop("TestItem")
+	ret1, err := resq.Pop("TestItem")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
 	if val, _ := ret1["Name"]; val != "TestItem" {
 		t.Errorf("ResQ Pop Value ERROR")
 	}
 
-	ret2 := resq.Pop("TestItem")
+	ret2, err := resq.Pop("TestItem")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
 	if ret2 != nil {
 		t.Errorf("ResQ Pop expected to return nil, but did not")
 	}

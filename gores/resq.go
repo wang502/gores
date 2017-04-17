@@ -148,33 +148,35 @@ func (resq *ResQ) push(queue string, item interface{}) error {
 
 // Pop calls "LPOP" command on Redis message queue
 // "LPOP" does not block even there is no item found
-func (resq *ResQ) Pop(queue string) map[string]interface{} {
+func (resq *ResQ) Pop(queue string) (map[string]interface{}, error) {
 	conn := resq.pool.Get()
 	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return nil
+		return nil, errors.New("pop failed: Redis pool's connection is nil")
 	}
 
 	reply, err := conn.Do("LPOP", fmt.Sprintf(queuePrefix, queue))
-	if err != nil || reply == nil {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("pop failed: %s", err)
+	}
+	if reply == nil {
+		return nil, nil
 	}
 
 	data, err := redis.Bytes(reply, err)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("pop failed: %s", err)
 	}
-	item, _ := resq.Decode(data)
-	return item
+
+	return resq.Decode(data)
 }
 
 // BlockPop calls "BLPOP" command on Redis message queue
 // "BLPOP" blocks for a configured time until a new job item is found and popped
-func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
+func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}, error) {
 	conn := resq.pool.Get()
 	if conn == nil {
 		log.Printf("Redis pool's connection is nil")
-		return "", nil
+		return "", nil, errors.New("blpop failed: Redis connection is nil")
 	}
 
 	queuesSlice := make([]interface{}, queues.Cardinality())
@@ -186,14 +188,17 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
 	}
 	redisArgs := append(queuesSlice, blpopMaxBlockTime)
 	data, err := conn.Do("BLPOP", redisArgs...)
-	if data == nil || err != nil {
-		return "", nil
+	if err != nil {
+		return "", nil, fmt.Errorf("blpop failed: %s", err)
+	}
+	if data == nil {
+		return "", nil, nil
 	}
 
 	// returned data contains [key, value], extract key at index 0, value at index 1
 	queueKey := string(data.([]interface{})[0].([]byte))
 	decoded, _ := resq.Decode(data.([]interface{})[1].([]byte))
-	return queueKey, decoded
+	return queueKey, decoded, nil
 }
 
 // Decode unmarshals byte array returned from Redis to a map instance

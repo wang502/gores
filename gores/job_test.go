@@ -9,7 +9,10 @@ func TestNewJob(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error Push to queue")
 	}
-	ret := resq.Pop("TestItem")
+	ret, err := resq.Pop("TestItem")
+	if err != nil {
+		t.Errorf("%s", err)
+	}
 	job := NewJob("TestItem", ret, resq, "TestWorker")
 	if job == nil {
 		t.Errorf("NewJob() can not create new job")

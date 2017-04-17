@@ -77,7 +77,8 @@ func (worker *Worker) ResQ() *ResQ {
 // String returns the string representation of this worker
 func (worker *Worker) String() string {
 	/* Worker ID
-	   hostname:pid:queue1,queue2,queue3 */
+	   hostname:pid:queue1,queue2,queue3
+	*/
 	if worker.id != "" {
 		return worker.id
 	}

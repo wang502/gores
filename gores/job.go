@@ -83,12 +83,12 @@ func (job *Job) Processed() {
 }
 
 // ReserveJob uses BLPOP command to fetch job from Redis
-func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) *Job {
-	queue, payload := resq.BlockPop(queues)
-	if payload != nil {
-		return NewJob(queue, payload, resq, workerID)
+func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) (*Job, error) {
+	queue, payload, err := resq.BlockPop(queues)
+	if err != nil {
+		return nil, fmt.Errorf("reserve job failed: %s", err)
 	}
-	return nil
+	return NewJob(queue, payload, resq, workerID), nil
 }
 
 // ExecuteJob executes the job, given the mapper of corresponding worker

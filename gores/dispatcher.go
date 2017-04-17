@@ -76,10 +76,11 @@ func (disp *Dispatcher) Dispatch() {
 		case workerID := <-workerIDChan:
 			go func(workerID string) {
 				for {
-					job := ReserveJob(disp.resq, disp.queues, workerID)
-					if job != nil {
-						disp.jobChannel <- job
+					job, err := ReserveJob(disp.resq, disp.queues, workerID)
+					if err != nil {
+						log.Println(err.Error())
 					}
+					disp.jobChannel <- job
 				}
 			}(workerID)
 		case <-time.After(time.Second * time.Duration(disp.timeout)):
