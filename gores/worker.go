@@ -50,7 +50,7 @@ func NewWorker(config *Config, queues mapset.Set, goroutineID int) *Worker {
 
 // NewWorkerFromString initlizes new worker
 func NewWorkerFromString(config *Config, server string, password string, queues mapset.Set, goroutineID int) *Worker {
-	resq := NewResQFromString(config, server, password)
+	resq := NewResQWithAuth(config, server, password)
 	if resq == nil {
 		return nil
 	}

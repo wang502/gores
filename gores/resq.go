@@ -29,7 +29,7 @@ func NewResQ(config *Config) *ResQ {
 	var host string
 
 	if len(config.RedisURL) != 0 && len(config.RedisPassword) != 0 {
-		pool = initPoolFromString(config.RedisURL, config.RedisPassword)
+		pool = initPoolWithAuth(config.RedisURL, config.RedisPassword)
 		host = config.RedisURL
 	} else {
 		pool = initPool()
@@ -48,9 +48,9 @@ func NewResQ(config *Config) *ResQ {
 	}
 }
 
-// NewResQFromString creates a new ResQ instance, given the pointer to config object, Redis server address and password
-func NewResQFromString(config *Config, server string, password string) *ResQ {
-	pool := initPoolFromString(server, password)
+// NewResQWithAuth creates a new ResQ instance, given the pointer to config object, Redis server address and password
+func NewResQWithAuth(config *Config, server string, password string) *ResQ {
+	pool := initPoolWithAuth(server, password)
 	if pool == nil {
 		log.Printf("initPool() Error\n")
 		return nil
@@ -61,6 +61,17 @@ func NewResQFromString(config *Config, server string, password string) *ResQ {
 		Host:          os.Getenv("REDISURL"),
 		config:        config,
 	}
+}
+
+// helper function to create new redis.Pool instance
+func initPool() *redis.Pool {
+	return makeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
+}
+
+// helper function to create new redis.Pool instance
+// given Redis server address and password
+func initPoolWithAuth(server string, password string) *redis.Pool {
+	return makeRedisPool(server, password)
 }
 
 // makeRedisPool creates new redis.Pool instance
@@ -89,17 +100,6 @@ func makeRedisPool(server string, password string) *redis.Pool {
 	return pool
 }
 
-// helper function to create new redis.Pool instance
-func initPool() *redis.Pool {
-	return makeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
-}
-
-// helper function to create new redis.Pool instance
-// given Redis server address and password
-func initPoolFromString(server string, password string) *redis.Pool {
-	return makeRedisPool(server, password)
-}
-
 // Enqueue puts new job item to Redis message queue
 func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 	/*
@@ -124,7 +124,6 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 // Helper function to put job item to Redis message queue
 func (resq *ResQ) push(queue string, item interface{}) error {
 	conn := resq.pool.Get()
-
 	if conn == nil {
 		return errors.New("push item failed: Redis pool's connection is nil")
 	}
@@ -150,22 +149,20 @@ func (resq *ResQ) push(queue string, item interface{}) error {
 // Pop calls "LPOP" command on Redis message queue
 // "LPOP" does not block even there is no item found
 func (resq *ResQ) Pop(queue string) map[string]interface{} {
-	var decoded map[string]interface{}
-
 	conn := resq.pool.Get()
 	if conn == nil {
 		log.Printf("Redis pool's connection is nil")
-		return decoded
+		return nil
 	}
 
 	reply, err := conn.Do("LPOP", fmt.Sprintf(queuePrefix, queue))
 	if err != nil || reply == nil {
-		return decoded
+		return nil
 	}
 
 	data, err := redis.Bytes(reply, err)
 	if err != nil {
-		return decoded
+		return nil
 	}
 	item, _ := resq.Decode(data)
 	return item
@@ -174,12 +171,10 @@ func (resq *ResQ) Pop(queue string) map[string]interface{} {
 // BlockPop calls "BLPOP" command on Redis message queue
 // "BLPOP" blocks for a configured time until a new job item is found and popped
 func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
-	var decoded map[string]interface{}
-
 	conn := resq.pool.Get()
 	if conn == nil {
 		log.Printf("Redis pool's connection is nil")
-		return "", decoded
+		return "", nil
 	}
 
 	queuesSlice := make([]interface{}, queues.Cardinality())
@@ -191,14 +186,13 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}) {
 	}
 	redisArgs := append(queuesSlice, blpopMaxBlockTime)
 	data, err := conn.Do("BLPOP", redisArgs...)
-
 	if data == nil || err != nil {
-		return "", decoded
+		return "", nil
 	}
 
 	// returned data contains [key, value], extract key at index 0, value at index 1
 	queueKey := string(data.([]interface{})[0].([]byte))
-	decoded, _ = resq.Decode(data.([]interface{})[1].([]byte))
+	decoded, _ := resq.Decode(data.([]interface{})[1].([]byte))
 	return queueKey, decoded
 }
 
