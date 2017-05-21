@@ -25,6 +25,7 @@ type Worker struct {
 	resq        *ResQ
 	started     int64
 	timeout     int
+	jobChan     chan *Job
 }
 
 // NewWorker initlizes new worker
@@ -45,6 +46,7 @@ func NewWorker(config *Config, queues mapset.Set, goroutineID int) *Worker {
 		resq:        resq,
 		started:     0,
 		timeout:     config.WorkerTimeout,
+		jobChan:     make(chan *Job),
 	}
 }
 
@@ -222,8 +224,8 @@ func (worker *Worker) Size() int {
 	return len(worker.resq.Workers())
 }
 
-// Startup wakes up the worker and start working on tasks
-func (worker *Worker) Startup(dispatcher *Dispatcher, tasks *map[string]interface{}) error {
+// Start starts the worker and start working on tasks
+func (worker *Worker) Start(dispatcher *Dispatcher, tasks *map[string]interface{}) error {
 	err := worker.PruneDeadWorkers()
 	if err != nil {
 		return fmt.Errorf("startup failed: %s", err)
@@ -246,13 +248,14 @@ func (worker *Worker) Startup(dispatcher *Dispatcher, tasks *map[string]interfac
 func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}) {
 	for {
 		select {
-		case job := <-dispatcher.jobChannel:
-			if err := ExecuteJob(job, tasks); err != nil {
-				log.Fatalf("ERROR Perform Job, %s", err)
+		case job, ok := <-worker.jobChan:
+			if !ok {
+				return
 			}
-		case <-time.After(time.Second * time.Duration(worker.timeout)):
-			log.Printf("Timeout: worker | %s\n", worker.String())
-			return
+
+			if err := ExecuteJob(job, tasks); err != nil {
+				log.Printf("failed to execute job: %s", err)
+			}
 		}
 	}
 }

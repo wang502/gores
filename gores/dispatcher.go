@@ -4,18 +4,16 @@ import (
 	"errors"
 	"log"
 	"sync"
-	"time"
 
 	"github.com/deckarep/golang-set"
 )
-
-var workerIDChan chan string
 
 // Dispatcher represents the dispatcher between Redis server and workers
 type Dispatcher struct {
 	resq        *ResQ
 	maxWorkers  int
 	jobChannel  chan *Job
+	jobChan     chan *Job
 	doneChannel chan int
 	queues      mapset.Set
 	timeout     int
@@ -27,33 +25,34 @@ func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher {
 		log.Println("Invalid number of workers to initialize Dispatcher")
 		return nil
 	}
-	workerIDChan = make(chan string, config.MaxWorkers)
+
 	return &Dispatcher{
 		resq:       resq,
 		maxWorkers: config.MaxWorkers,
 		jobChannel: make(chan *Job, config.MaxWorkers),
+		jobChan:    make(chan *Job),
 		queues:     queues,
 		timeout:    config.DispatcherTimeout,
 	}
 }
 
-// Run startups the Dispatcher
-func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
+// Start starts dispatching in fanout way
+func (disp *Dispatcher) Start(tasks *map[string]interface{}) error {
 	var wg sync.WaitGroup
 	config := disp.resq.config
+	workers := make([]*Worker, disp.maxWorkers)
 
 	for i := 0; i < disp.maxWorkers; i++ {
 		worker := NewWorker(config, disp.queues, i+1)
 		if worker == nil {
 			return errors.New("run dispatcher failed: worker is nil")
 		}
-		workerID := worker.String()
-		workerIDChan <- workerID
+		workers[i] = worker
 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := worker.Startup(disp, tasks)
+			err := worker.Start(disp, tasks)
 			if err != nil {
 				log.Fatalf("run dispatcher failed: %s", err)
 			}
@@ -63,30 +62,35 @@ func (disp *Dispatcher) Run(tasks *map[string]interface{}) error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		disp.Dispatch()
+		disp.dispatch(workers)
 	}()
 	wg.Wait()
 	return nil
 }
 
-// Dispatch lets Dispatcher transport jobs between Redis and Gores workers
-func (disp *Dispatcher) Dispatch() {
-	for {
-		select {
-		case workerID := <-workerIDChan:
-			go func(workerID string) {
-				for {
-					job, err := ReserveJob(disp.resq, disp.queues, workerID)
-					if err != nil {
-						log.Println(err.Error())
-					}
-					disp.jobChannel <- job
-				}
-			}(workerID)
-		case <-time.After(time.Second * time.Duration(disp.timeout)):
-			log.Println("Timeout: Dispatch")
-			break
+// dispatch dispatches jobs between Redis and Gores workers
+func (disp *Dispatcher) dispatch(workers []*Worker) {
+	go func() {
+		for {
+			job, err := ReserveJob(disp.resq, disp.queues)
+			if err != nil {
+				log.Printf("dispatch job failed: %s\n", err)
+				return
+			}
+
+			disp.jobChan <- job
 		}
-		break
+	}()
+
+	for {
+		for _, worker := range workers {
+			select {
+			case job, ok := <-disp.jobChan:
+				if !ok {
+					return
+				}
+				worker.jobChan <- job
+			}
+		}
 	}
 }

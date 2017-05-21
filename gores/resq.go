@@ -444,7 +444,7 @@ func Launch(config *Config, tasks *map[string]interface{}) error {
 		return errors.New("ResQ launch failed: Dispatcher is nil")
 	}
 
-	err := dispatcher.Run(tasks)
+	err := dispatcher.Start(tasks)
 	if err != nil {
 		return fmt.Errorf("ResQ launch failed: %s", err)
 	}

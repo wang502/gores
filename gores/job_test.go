@@ -13,7 +13,7 @@ func TestNewJob(t *testing.T) {
 	if err != nil {
 		t.Errorf("%s", err)
 	}
-	job := NewJob("TestItem", ret, resq, "TestWorker")
+	job := NewJob("TestItem", ret, resq)
 	if job == nil {
 		t.Errorf("NewJob() can not create new job")
 	}
@@ -24,7 +24,6 @@ func TestExecuteJob(t *testing.T) {
 		queue:            "TestItem",
 		payload:          item,
 		resq:             nil,
-		worker:           "foo",
 		enqueueTimestamp: 0}
 
 	err := ExecuteJob(mockJob, &tasks)

@@ -12,12 +12,11 @@ type Job struct {
 	queue            string
 	payload          map[string]interface{}
 	resq             *ResQ
-	worker           string
 	enqueueTimestamp int64
 }
 
 // NewJob initilizes a new job object
-func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker string) *Job {
+func NewJob(queue string, payload map[string]interface{}, resq *ResQ) *Job {
 	var timestamp int64
 	_, ok := payload["Enqueue_timestamp"]
 	if !ok {
@@ -32,7 +31,6 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ, worker str
 		queue:            queue,
 		payload:          payload,
 		resq:             resq,
-		worker:           worker,
 		enqueueTimestamp: timestamp,
 	}
 }
@@ -83,12 +81,12 @@ func (job *Job) Processed() {
 }
 
 // ReserveJob uses BLPOP command to fetch job from Redis
-func ReserveJob(resq *ResQ, queues mapset.Set, workerID string) (*Job, error) {
+func ReserveJob(resq *ResQ, queues mapset.Set) (*Job, error) {
 	queue, payload, err := resq.BlockPop(queues)
 	if err != nil {
 		return nil, fmt.Errorf("reserve job failed: %s", err)
 	}
-	return NewJob(queue, payload, resq, workerID), nil
+	return NewJob(queue, payload, resq), nil
 }
 
 // ExecuteJob executes the job, given the mapper of corresponding worker
