@@ -21,61 +21,61 @@ var (
 		MaxWorkers:        2,
 		Queues:            []string{"TestJob", "TestItem"},
 	}
-	resq = NewResQ(config)
-	args = map[string]interface{}{"id": 1}
-	item = map[string]interface{}{
+	gores = NewGores(config)
+	args  = map[string]interface{}{"id": 1}
+	item  = map[string]interface{}{
 		"Name":              "TestItem",
 		"Queue":             "TestItem",
 		"Args":              args,
-		"Enqueue_timestamp": resq.CurrentTime(),
+		"Enqueue_timestamp": gores.CurrentTime(),
 		"Retry":             true,
 		"Retry_every":       10,
 	}
 	tasks = map[string]interface{}{
 		"TestItem": PrintItem,
 	}
-	stat = NewStat("TestItem", resq)
+	stat = NewStat("TestItem", gores)
 )
 
-func TestResQPushPop(t *testing.T) {
-	err := resq.push("TestItem", item)
+func TestGoresPushPop(t *testing.T) {
+	err := gores.push("TestItem", item)
 	if err != nil {
-		t.Errorf("ResQ Push returned ERROR")
+		t.Errorf("Gores Push returned ERROR")
 	}
 
-	ret1, err := resq.Pop("TestItem")
+	ret1, err := gores.Pop("TestItem")
 	if err != nil {
 		t.Errorf("%s", err)
 	}
 	if val, _ := ret1["Name"]; val != "TestItem" {
-		t.Errorf("ResQ Pop Value ERROR")
+		t.Errorf("Gores Pop Value ERROR")
 	}
 
-	ret2, err := resq.Pop("TestItem")
+	ret2, err := gores.Pop("TestItem")
 	if err != nil {
 		t.Errorf("%s", err)
 	}
 	if ret2 != nil {
-		t.Errorf("ResQ Pop expected to return nil, but did not")
+		t.Errorf("Gores Pop expected to return nil, but did not")
 	}
 }
 
-func TestResQSize(t *testing.T) {
-	err := resq.push("TestItem", item)
+func TestGoresSize(t *testing.T) {
+	err := gores.push("TestItem", item)
 	if err != nil {
-		t.Errorf("ResQ Push returned ERROR")
+		t.Errorf("Gores Push returned ERROR")
 	}
 
-	size, err := resq.Size("TestItem")
+	size, err := gores.Size("TestItem")
 	if err != nil {
 		t.Errorf("%s", err)
 	}
 
 	if size != 1 {
-		t.Errorf("ResQ Size() expected to return 1, but returned %d", size)
+		t.Errorf("Gores Size() expected to return 1, but returned %d", size)
 	}
 
-	resq.Pop("TestItem")
+	gores.Pop("TestItem")
 }
 
 func TestStat(t *testing.T) {

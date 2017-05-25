@@ -8,24 +8,24 @@ import (
 
 // Stat represents the statistic of a specific job queue in Redis
 type Stat struct {
-	Name string
-	Key  string
-	Resq *ResQ
+	name  string
+	key   string
+	gores *Gores
 }
 
 // NewStat initializes a new stat struct
-func NewStat(name string, resq *ResQ) *Stat {
+func NewStat(name string, gores *Gores) *Stat {
 	return &Stat{
-		Name: name,
-		Key:  fmt.Sprintf(statPrefix, name),
-		Resq: resq,
+		name:  name,
+		key:   fmt.Sprintf(statPrefix, name),
+		gores: gores,
 	}
 }
 
 // Get retrieves the statistic of the given queue
 func (stat *Stat) Get() int64 {
-	conn := stat.Resq.pool.Get()
-	data, err := conn.Do("GET", stat.Key)
+	conn := stat.gores.pool.Get()
+	data, err := conn.Do("GET", stat.key)
 	if err != nil || data == nil {
 		return 0
 	}
@@ -35,7 +35,7 @@ func (stat *Stat) Get() int64 {
 
 // Incr increments the count of the given queue key
 func (stat *Stat) Incr() int {
-	_, err := stat.Resq.pool.Get().Do("INCR", stat.Key)
+	_, err := stat.gores.pool.Get().Do("INCR", stat.key)
 	if err != nil {
 		log.Println(err)
 		return 0
@@ -45,7 +45,7 @@ func (stat *Stat) Incr() int {
 
 // Decr decrements the count of the given queue key
 func (stat *Stat) Decr() int {
-	_, err := stat.Resq.pool.Get().Do("DECR", stat.Key)
+	_, err := stat.gores.pool.Get().Do("DECR", stat.key)
 	if err != nil {
 		log.Println(err)
 		return 0
@@ -55,7 +55,7 @@ func (stat *Stat) Decr() int {
 
 // Clear deletes the statistic about the queue
 func (stat *Stat) Clear() int {
-	_, err := stat.Resq.pool.Get().Do("DEL", stat.Key)
+	_, err := stat.gores.pool.Get().Do("DEL", stat.key)
 	if err != nil {
 		log.Println(err)
 		return 0

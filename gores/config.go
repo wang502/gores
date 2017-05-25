@@ -8,13 +8,30 @@ import (
 
 // Config contains the configuration parameters for running Gores
 type Config struct {
-	RedisURL          string
-	RedisPassword     string
+	// Authetication for Redis connection
+	RedisURL      string
+	RedisPassword string
+
+	// Maximum number of idle connections in the Redis pool
+	RedisMaxIdle int
+
+	// Redigo closes connection after it remains idle for this duration
+	RedisIdleTimeout int
+
+	// Conn blocks for this duration when trying to pop items from several queues from Redis
 	BlpopMaxBlockTime int
-	MaxWorkers        int
-	Queues            []string
+
+	// Maximum number of workers needed for Gores
+	MaxWorkers int
+
+	// names of queues to fetch jobs from
+	Queues []string
+
+	// Dispatcher returns after it did not have jobs to dispatch for this duration
 	DispatcherTimeout int
-	WorkerTimeout     int
+
+	// Worker returns after it did not have job to work on after this duration
+	WorkerTimeout int
 }
 
 // InitConfig creates new config instance based on the config.json file path

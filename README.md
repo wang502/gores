@@ -55,7 +55,7 @@ A job is a Go map. It is required to have several keys:
 - ***Enqueue_timestamp***: the Unix timestamp of when the item is enqueued.
 
 ```go
-resq := gores.NewResQ(config)
+gores := gores.NewGores(config)
 job := map[string]interface{}{
   "Name": "Rectangle",
   "Queue": "TestJob",
@@ -66,9 +66,9 @@ job := map[string]interface{}{
   "Enqueue_timestamp": time.Now().Unix(),
 }
 
-err = resq.Enqueue(job)
+err = gores.Enqueue(job)
 if err != nil {
-	log.Fatalf("ERROR Enqueue item to ResQ")
+	log.Fatalf("ERROR Enqueue item to Gores")
 }
 ```
 
@@ -117,12 +117,12 @@ The rectangle area is 100
 
 ### Info about processed/failed job
 ```go
-resq := gores.NewResQ(config)
-if resq == nil {
-    log.Fatalf("resq is nil")
+gores := gores.NewGores(config)
+if gores == nil {
+    log.Fatalf("gores is nil")
 }
 
-info, err := resq.Info()
+info, err := gores.Info()
 if err != nil {
   log.Fatal(err)
 }

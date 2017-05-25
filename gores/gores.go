@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
@@ -15,71 +14,51 @@ import (
 
 // redis-cli -h host -p port -a password
 
-// ResQ represents the main Gores object that stores all configurations and connection with Redis
-type ResQ struct {
+// Gores represents the main Gores object that stores all configurations and connection with Redis
+type Gores struct {
 	pool          *redis.Pool
 	watchedQueues mapset.Set
-	Host          string
+	host          string
 	config        *Config
 }
 
-// NewResQ creates a new ResQ instance given the pointer to config object
-func NewResQ(config *Config) *ResQ {
+// NewGores creates a new Gores instance given the pointer to config object
+func NewGores(config *Config) *Gores {
 	var pool *redis.Pool
 	var host string
 
-	if len(config.RedisURL) != 0 && len(config.RedisPassword) != 0 {
-		pool = initPoolWithAuth(config.RedisURL, config.RedisPassword)
-		host = config.RedisURL
-	} else {
-		pool = initPool()
-		host = os.Getenv("REDISURL")
-	}
+	pool = initPool(config)
+	host = config.RedisURL
+
 	if pool == nil {
 		log.Printf("ERROR Initializing Redis Pool\n")
 		return nil
 	}
 
-	return &ResQ{
+	return &Gores{
 		pool:          pool,
 		watchedQueues: mapset.NewSet(),
-		Host:          host,
-		config:        config,
-	}
-}
-
-// NewResQWithAuth creates a new ResQ instance, given the pointer to config object, Redis server address and password
-func NewResQWithAuth(config *Config, server string, password string) *ResQ {
-	pool := initPoolWithAuth(server, password)
-	if pool == nil {
-		log.Printf("initPool() Error\n")
-		return nil
-	}
-	return &ResQ{
-		pool:          pool,
-		watchedQueues: mapset.NewSet(),
-		Host:          os.Getenv("REDISURL"),
+		host:          host,
 		config:        config,
 	}
 }
 
 // helper function to create new redis.Pool instance
-func initPool() *redis.Pool {
-	return makeRedisPool(os.Getenv("REDISURL"), os.Getenv("REDIS_PW"))
+func initPool(config *Config) *redis.Pool {
+	return newRedisPoool(config)
 }
 
-// helper function to create new redis.Pool instance
+// newRedisPoool creates new redis.Pool instance
 // given Redis server address and password
-func initPoolWithAuth(server string, password string) *redis.Pool {
-	return makeRedisPool(server, password)
-}
+func newRedisPoool(config *Config) *redis.Pool {
+	server := config.RedisURL
+	password := config.RedisPassword
+	maxIdle := config.RedisMaxIdle
+	idleTimeout := config.RedisIdleTimeout
 
-// makeRedisPool creates new redis.Pool instance
-// given Redis server address and password
-func makeRedisPool(server string, password string) *redis.Pool {
 	pool := &redis.Pool{
-		MaxIdle:     5,
-		IdleTimeout: 240 * time.Second,
+		MaxIdle:     maxIdle,
+		IdleTimeout: time.Duration(idleTimeout) * time.Second,
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.Dial("tcp", server)
 			if err != nil {
@@ -101,7 +80,7 @@ func makeRedisPool(server string, password string) *redis.Pool {
 }
 
 // Enqueue puts new job item to Redis message queue
-func (resq *ResQ) Enqueue(item map[string]interface{}) error {
+func (gores *Gores) Enqueue(item map[string]interface{}) error {
 	/*
 	   Enqueue a job into a specific queue. Make sure the map you are
 	   passing has keys
@@ -113,7 +92,7 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 		return errors.New("enqueue item failed: job item has no key 'Queue' or 'Args'")
 	}
 
-	err := resq.push(queue.(string), item)
+	err := gores.push(queue.(string), item)
 	if err != nil {
 		return fmt.Errorf("enqueue item failed: %s", err)
 	}
@@ -122,13 +101,11 @@ func (resq *ResQ) Enqueue(item map[string]interface{}) error {
 }
 
 // Helper function to put job item to Redis message queue
-func (resq *ResQ) push(queue string, item interface{}) error {
-	conn := resq.pool.Get()
-	if conn == nil {
-		return errors.New("push item failed: Redis pool's connection is nil")
-	}
+func (gores *Gores) push(queue string, item interface{}) error {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
-	itemString, err := resq.Encode(item)
+	itemString, err := gores.Encode(item)
 	if err != nil {
 		return fmt.Errorf("push item failed: %s", err)
 	}
@@ -138,7 +115,7 @@ func (resq *ResQ) push(queue string, item interface{}) error {
 		return fmt.Errorf("push item failed: %s", err)
 	}
 
-	err = resq.watchQueue(queue)
+	err = gores.watchQueue(queue)
 	if err != nil {
 		return fmt.Errorf("push item failed: %s", err)
 	}
@@ -148,11 +125,9 @@ func (resq *ResQ) push(queue string, item interface{}) error {
 
 // Pop calls "LPOP" command on Redis message queue
 // "LPOP" does not block even there is no item found
-func (resq *ResQ) Pop(queue string) (map[string]interface{}, error) {
-	conn := resq.pool.Get()
-	if conn == nil {
-		return nil, errors.New("pop failed: Redis pool's connection is nil")
-	}
+func (gores *Gores) Pop(queue string) (map[string]interface{}, error) {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	reply, err := conn.Do("LPOP", fmt.Sprintf(queuePrefix, queue))
 	if err != nil {
@@ -167,17 +142,14 @@ func (resq *ResQ) Pop(queue string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("pop failed: %s", err)
 	}
 
-	return resq.Decode(data)
+	return gores.Decode(data)
 }
 
 // BlockPop calls "BLPOP" command on Redis message queue
 // "BLPOP" blocks for a configured time until a new job item is found and popped
-func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}, error) {
-	conn := resq.pool.Get()
-	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return "", nil, errors.New("blpop failed: Redis connection is nil")
-	}
+func (gores *Gores) BlockPop(queues mapset.Set) (string, map[string]interface{}, error) {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	queuesSlice := make([]interface{}, queues.Cardinality())
 	it := queues.Iterator()
@@ -197,12 +169,12 @@ func (resq *ResQ) BlockPop(queues mapset.Set) (string, map[string]interface{}, e
 
 	// returned data contains [key, value], extract key at index 0, value at index 1
 	queueKey := string(data.([]interface{})[0].([]byte))
-	decoded, _ := resq.Decode(data.([]interface{})[1].([]byte))
+	decoded, _ := gores.Decode(data.([]interface{})[1].([]byte))
 	return queueKey, decoded, nil
 }
 
 // Decode unmarshals byte array returned from Redis to a map instance
-func (resq *ResQ) Decode(data []byte) (map[string]interface{}, error) {
+func (gores *Gores) Decode(data []byte) (map[string]interface{}, error) {
 	var decoded map[string]interface{}
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return decoded, fmt.Errorf("decode data failed: %s", err)
@@ -212,7 +184,7 @@ func (resq *ResQ) Decode(data []byte) (map[string]interface{}, error) {
 }
 
 // Encode marshalls map instance to its string representation
-func (resq *ResQ) Encode(item interface{}) (string, error) {
+func (gores *Gores) Encode(item interface{}) (string, error) {
 	b, err := json.Marshal(item)
 	if err != nil {
 		return "", fmt.Errorf("encode data failed: %s", err)
@@ -221,28 +193,23 @@ func (resq *ResQ) Encode(item interface{}) (string, error) {
 	return string(b), nil
 }
 
-// Size returns the size of the given message queue "resq:queue:%s" on Redis
-func (resq *ResQ) Size(queue string) (int64, error) {
-	conn := resq.pool.Get()
-	if conn == nil {
-		return 0, errors.New("ResQ find queue size failed: Redis pool's connection is nil")
-	}
+// Size returns the size of the given message queue "gores:queue:%s" on Redis
+func (gores *Gores) Size(queue string) (int64, error) {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	size, err := conn.Do("LLEN", fmt.Sprintf(queuePrefix, queue))
 	if size == nil || err != nil {
-		return 0, fmt.Errorf("ResQ find queue size failed: %s", err)
+		return 0, fmt.Errorf("Gores find queue size failed: %s", err)
 	}
 
 	return size.(int64), nil
 }
 
 // SizeOfQueue return the size of any given queue on Redis
-func (resq *ResQ) SizeOfQueue(key string) int64 {
-	conn := resq.pool.Get()
-	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return 0
-	}
+func (gores *Gores) SizeOfQueue(key string) int64 {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	size, err := conn.Do("LLEN", key)
 	if size == nil || err != nil {
@@ -252,14 +219,12 @@ func (resq *ResQ) SizeOfQueue(key string) int64 {
 	return size.(int64)
 }
 
-func (resq *ResQ) watchQueue(queue string) error {
-	if resq.watchedQueues.Contains(queue) {
+func (gores *Gores) watchQueue(queue string) error {
+	if gores.watchedQueues.Contains(queue) {
 		return nil
 	}
-	conn := resq.pool.Get()
-	if conn == nil {
-		return errors.New("watch queue failed: Redis conn is nil")
-	}
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	_, err := conn.Do("SADD", watchedQueues, queue)
 	if err != nil {
@@ -270,8 +235,8 @@ func (resq *ResQ) watchQueue(queue string) error {
 }
 
 // EnqueueAt puts the job to Redis delayed queue for the given timestamp
-func (resq *ResQ) EnqueueAt(datetime int64, item interface{}) error {
-	err := resq.delayedPush(datetime, item)
+func (gores *Gores) EnqueueAt(datetime int64, item interface{}) error {
+	err := gores.delayedPush(datetime, item)
 	if err != nil {
 		return fmt.Errorf("enqueue at timestamp failed: %s", err)
 	}
@@ -279,14 +244,12 @@ func (resq *ResQ) EnqueueAt(datetime int64, item interface{}) error {
 	return nil
 }
 
-func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
-	conn := resq.pool.Get()
-	if conn == nil {
-		return errors.New("delayed push failed: Redis conn is nil")
-	}
+func (gores *Gores) delayedPush(datetime int64, item interface{}) error {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	key := strconv.FormatInt(datetime, 10)
-	itemString, err := resq.Encode(item)
+	itemString, err := gores.Encode(item)
 	if err != nil {
 		return fmt.Errorf("delayed push failed: %s", err)
 	}
@@ -305,14 +268,11 @@ func (resq *ResQ) delayedPush(datetime int64, item interface{}) error {
 }
 
 // Queues returns a slice of existing queues' names
-func (resq *ResQ) Queues() []string {
+func (gores *Gores) Queues() []string {
 	queues := make([]string, 0)
 
-	conn := resq.pool.Get()
-	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return queues
-	}
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	data, _ := conn.Do("SMEMBERS", watchedQueues)
 	for _, q := range data.([]interface{}) {
@@ -323,8 +283,10 @@ func (resq *ResQ) Queues() []string {
 }
 
 // Workers retruns a slice of existing worker names
-func (resq *ResQ) Workers() []string {
-	conn := resq.pool.Get()
+func (gores *Gores) Workers() []string {
+	conn := gores.pool.Get()
+	defer conn.Close()
+
 	data, err := conn.Do("SMEMBERS", watchedWorkers)
 	if data == nil || err != nil {
 		return nil
@@ -339,12 +301,12 @@ func (resq *ResQ) Workers() []string {
 }
 
 // Info returns the information of the Redis queue
-func (resq *ResQ) Info() (map[string]interface{}, error) {
+func (gores *Gores) Info() (map[string]interface{}, error) {
 	var pending int64
-	for _, q := range resq.Queues() {
-		num, err := resq.Size(q)
+	for _, q := range gores.Queues() {
+		num, err := gores.Size(q)
 		if err != nil {
-			return nil, fmt.Errorf("ResQ info failed: %s", err)
+			return nil, fmt.Errorf("Gores info failed: %s", err)
 		}
 
 		pending += num
@@ -352,24 +314,21 @@ func (resq *ResQ) Info() (map[string]interface{}, error) {
 
 	info := make(map[string]interface{})
 	info["pending"] = pending
-	info["processed"] = NewStat("processed", resq).Get()
-	info["queues"] = len(resq.Queues())
-	info["workers"] = len(resq.Workers())
-	info["failed"] = NewStat("falied", resq).Get()
-	info["host"] = resq.Host
+	info["processed"] = NewStat("processed", gores).Get()
+	info["queues"] = len(gores.Queues())
+	info["workers"] = len(gores.Workers())
+	info["failed"] = NewStat("falied", gores).Get()
+	info["host"] = gores.host
 
 	return info, nil
 }
 
 // NextDelayedTimestamp returns the next delayed timestamps
-func (resq *ResQ) NextDelayedTimestamp() int64 {
-	conn := resq.pool.Get()
-	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return 0
-	}
+func (gores *Gores) NextDelayedTimestamp() int64 {
+	conn := gores.pool.Get()
+	defer conn.Close()
 
-	key := resq.CurrentTime()
+	key := gores.CurrentTime()
 	data, err := conn.Do("ZRANGEBYSCORE", watchedSchedules, "-inf", key)
 	if err != nil || data == nil {
 		return 0
@@ -386,17 +345,14 @@ func (resq *ResQ) NextDelayedTimestamp() int64 {
 }
 
 // NextItemForTimestamp fetches item from delayed queue in Redis that has the given timestamp
-func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
+func (gores *Gores) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 	var res map[string]interface{}
 
 	timeStr := strconv.FormatInt(timestamp, 10)
 	key := fmt.Sprintf(delayedQueuePrefix, timeStr)
 
-	conn := resq.pool.Get()
-	if conn == nil {
-		log.Printf("Redis pool's connection is nil")
-		return res
-	}
+	conn := gores.pool.Get()
+	defer conn.Close()
 
 	reply, err := conn.Do("LPOP", key)
 	if reply == nil || err != nil {
@@ -406,7 +362,7 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 	if err != nil {
 		return res
 	}
-	res, _ = resq.Decode(data)
+	res, _ = gores.Decode(data)
 	llen, err := conn.Do("LLEN", key)
 	if llen == nil || err != nil {
 		return res
@@ -419,7 +375,7 @@ func (resq *ResQ) NextItemForTimestamp(timestamp int64) map[string]interface{} {
 }
 
 // CurrentTime retruns the current unix timestamp
-func (resq *ResQ) CurrentTime() int64 {
+func (gores *Gores) CurrentTime() int64 {
 	timestamp := time.Now().Unix()
 	return timestamp
 }
@@ -428,9 +384,9 @@ func (resq *ResQ) CurrentTime() int64 {
 
 // Launch startups the gores Dispatcher and Worker to do background works
 func Launch(config *Config, tasks *map[string]interface{}) error {
-	resq := NewResQ(config)
-	if resq == nil {
-		return errors.New("ResQ launch failed: ResQ is nil")
+	gores := NewGores(config)
+	if gores == nil {
+		return errors.New("Gores launch failed: Gores is nil")
 	}
 
 	inSlice := make([]interface{}, len(config.Queues))
@@ -439,14 +395,14 @@ func Launch(config *Config, tasks *map[string]interface{}) error {
 	}
 	queuesSet := mapset.NewSetFromSlice(inSlice)
 
-	dispatcher := NewDispatcher(resq, config, queuesSet)
+	dispatcher := NewDispatcher(gores, config, queuesSet)
 	if dispatcher == nil {
-		return errors.New("ResQ launch failed: Dispatcher is nil")
+		return errors.New("Gores launch failed: Dispatcher is nil")
 	}
 
 	err := dispatcher.Start(tasks)
 	if err != nil {
-		return fmt.Errorf("ResQ launch failed: %s", err)
+		return fmt.Errorf("Gores launch failed: %s", err)
 	}
 
 	return nil

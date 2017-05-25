@@ -10,7 +10,7 @@ import (
 
 // Dispatcher represents the dispatcher between Redis server and workers
 type Dispatcher struct {
-	resq        *ResQ
+	gores       *Gores
 	maxWorkers  int
 	jobChannel  chan *Job
 	jobChan     chan *Job
@@ -20,14 +20,14 @@ type Dispatcher struct {
 }
 
 // NewDispatcher creates Dispatcher instance
-func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher {
-	if resq == nil || config.MaxWorkers <= 0 {
+func NewDispatcher(gores *Gores, config *Config, queues mapset.Set) *Dispatcher {
+	if gores == nil || config.MaxWorkers <= 0 {
 		log.Println("Invalid number of workers to initialize Dispatcher")
 		return nil
 	}
 
 	return &Dispatcher{
-		resq:       resq,
+		gores:      gores,
 		maxWorkers: config.MaxWorkers,
 		jobChannel: make(chan *Job, config.MaxWorkers),
 		jobChan:    make(chan *Job),
@@ -39,7 +39,7 @@ func NewDispatcher(resq *ResQ, config *Config, queues mapset.Set) *Dispatcher {
 // Start starts dispatching in fanout way
 func (disp *Dispatcher) Start(tasks *map[string]interface{}) error {
 	var wg sync.WaitGroup
-	config := disp.resq.config
+	config := disp.gores.config
 	workers := make([]*Worker, disp.maxWorkers)
 
 	for i := 0; i < disp.maxWorkers; i++ {
@@ -72,7 +72,7 @@ func (disp *Dispatcher) Start(tasks *map[string]interface{}) error {
 func (disp *Dispatcher) dispatch(workers []*Worker) {
 	go func() {
 		for {
-			job, err := ReserveJob(disp.resq, disp.queues)
+			job, err := ReserveJob(disp.gores, disp.queues)
 			if err != nil {
 				log.Printf("dispatch job failed: %s\n", err)
 				return

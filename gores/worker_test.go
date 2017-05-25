@@ -12,7 +12,7 @@ var (
 	queues = []interface{}{"TestItem", "Comment"}
 	qSet   = mapset.NewSetFromSlice(queues)
 
-	// config declared in resq_test.go
+	// config declared in gores_test.go
 	worker = NewWorker(config, qSet, 1)
 )
 
@@ -73,7 +73,7 @@ func TestAll(t *testing.T) {
 		}
 	}
 
-	allWorkers := testWorkers[0].All(testWorkers[0].ResQ())
+	allWorkers := testWorkers[0].All(testWorkers[0].Gores())
 	if len(allWorkers) != len(testWorkers) {
 		t.Errorf("Worker All() did not return all workers")
 	}
@@ -85,7 +85,7 @@ func TestAll(t *testing.T) {
 		}
 	}
 
-	allWorkers = testWorkers[0].All(testWorkers[0].ResQ())
+	allWorkers = testWorkers[0].All(testWorkers[0].Gores())
 	if len(allWorkers) != 0 {
 		t.Errorf("Worker Unregsiter Worker unsuccessful")
 	}

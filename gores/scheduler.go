@@ -6,7 +6,7 @@ import (
 
 // Scheduler represents a scheduler that schedule delayed and failed jobs in Gores
 type Scheduler struct {
-	resq          *ResQ
+	gores         *Gores
 	timestampChan chan int64
 	shutdownChan  chan bool
 }
@@ -14,13 +14,13 @@ type Scheduler struct {
 // NewScheduler initializes a new shceduler
 func NewScheduler(config *Config) *Scheduler {
 	var sche *Scheduler
-	resq := NewResQ(config)
-	if resq == nil {
-		log.Fatalf("ERROR Initializing ResQ(), cannot initialize Scheduler")
+	gores := NewGores(config)
+	if gores == nil {
+		log.Fatalf("Error initializing Scheduler")
 		return nil
 	}
 	sche = &Scheduler{
-		resq:          resq,
+		gores:         gores,
 		timestampChan: make(chan int64, 1),
 		shutdownChan:  make(chan bool, 1),
 	}
@@ -35,12 +35,12 @@ func (sche *Scheduler) ScheduleShutdown() {
 // NextDelayedTimestamps fetches delayed jobs from Redis and place them into channel
 func (sche *Scheduler) NextDelayedTimestamps() {
 	for {
-		timestamp := sche.resq.NextDelayedTimestamp()
+		timestamp := sche.gores.NextDelayedTimestamp()
 		log.Printf("timestamp of delayed item: %d\n", timestamp)
 		if timestamp != 0 {
 			sche.timestampChan <- timestamp
 		} else {
-			/* breaks when there is no delayed items in the 'resq:delayed:timestamp' queue*/
+			/* breaks when there is no delayed items in the 'gores:delayed:timestamp' queue*/
 			break
 		}
 	}
@@ -53,10 +53,10 @@ func (sche *Scheduler) HandleDelayedItems() {
 	for {
 		select {
 		case timestamp := <-sche.timestampChan:
-			item := sche.resq.NextItemForTimestamp(timestamp)
+			item := sche.gores.NextItemForTimestamp(timestamp)
 			if item != nil {
 				log.Println(item)
-				err := sche.resq.Enqueue(item)
+				err := sche.gores.Enqueue(item)
 				if err != nil {
 					log.Fatalf("ERROR Enqueue Delayed Item: %s", err)
 				}

@@ -22,7 +22,7 @@ type Worker struct {
 	child       string
 	pid         int
 	hostname    string
-	resq        *ResQ
+	gores       *Gores
 	started     int64
 	timeout     int
 	jobChan     chan *Job
@@ -30,8 +30,8 @@ type Worker struct {
 
 // NewWorker initlizes new worker
 func NewWorker(config *Config, queues mapset.Set, goroutineID int) *Worker {
-	resq := NewResQ(config)
-	if resq == nil {
+	gores := NewGores(config)
+	if gores == nil {
 		return nil
 	}
 	hostname, _ := os.Hostname()
@@ -43,37 +43,17 @@ func NewWorker(config *Config, queues mapset.Set, goroutineID int) *Worker {
 		child:       "",
 		pid:         os.Getpid(),
 		hostname:    hostname,
-		resq:        resq,
+		gores:       gores,
 		started:     0,
 		timeout:     config.WorkerTimeout,
 		jobChan:     make(chan *Job),
 	}
 }
 
-// NewWorkerFromString initlizes new worker
-func NewWorkerFromString(config *Config, server string, password string, queues mapset.Set, goroutineID int) *Worker {
-	resq := NewResQWithAuth(config, server, password)
-	if resq == nil {
-		return nil
-	}
-	hostname, _ := os.Hostname()
-	return &Worker{
-		id:          "",
-		goroutineID: goroutineID,
-		queues:      queues,
-		shutdown:    false,
-		child:       "",
-		pid:         os.Getpid(),
-		hostname:    hostname,
-		resq:        resq,
-		started:     0,
-	}
-}
-
-// ResQ returns the pointer to embedded ResQ object
-func (worker *Worker) ResQ() *ResQ {
-	/* export access to **resq** identifier to other package*/
-	return worker.resq
+// Gores returns the pointer to embedded Gores object
+func (worker *Worker) Gores() *Gores {
+	/* export access to **gores** identifier to other package*/
+	return worker.gores
 }
 
 // String returns the string representation of this worker
@@ -95,7 +75,7 @@ func (worker *Worker) String() string {
 
 // RegisterWorker saves information about this worker on Redis
 func (worker *Worker) RegisterWorker() error {
-	conn := worker.resq.pool.Get()
+	conn := worker.gores.pool.Get()
 	if conn == nil {
 		return errors.New("RegisterWorker failed: Redis pool's connection is nil")
 	}
@@ -110,7 +90,7 @@ func (worker *Worker) RegisterWorker() error {
 
 // UnregisterWorker delets all information related to this worker from Redis
 func (worker *Worker) UnregisterWorker() error {
-	conn := worker.resq.pool.Get()
+	conn := worker.gores.pool.Get()
 	if conn == nil {
 		return errors.New("UnregisterWorker failed: Redis pool's connection is nil")
 	}
@@ -121,10 +101,10 @@ func (worker *Worker) UnregisterWorker() error {
 	}
 	worker.started = 0
 
-	pStat := NewStat(fmt.Sprintf("processed:%s", worker.String()), worker.resq)
+	pStat := NewStat(fmt.Sprintf("processed:%s", worker.String()), worker.gores)
 	pStat.Clear()
 
-	fStat := NewStat(fmt.Sprintf("falied:%s", worker.String()), worker.resq)
+	fStat := NewStat(fmt.Sprintf("falied:%s", worker.String()), worker.gores)
 	fStat.Clear()
 
 	return nil
@@ -132,7 +112,7 @@ func (worker *Worker) UnregisterWorker() error {
 
 // PruneDeadWorkers delets the worker information
 func (worker *Worker) PruneDeadWorkers() error {
-	allWorkers := worker.All(worker.resq)
+	allWorkers := worker.All(worker.gores)
 	allPids := worker.WorkerPids()
 	for _, w := range allWorkers {
 		idTokens := strings.Split(w.id, ":")
@@ -158,18 +138,18 @@ func (worker *Worker) PruneDeadWorkers() error {
 }
 
 // All retruns a slice of existing workers
-func (worker *Worker) All(resq *ResQ) []*Worker {
-	workerIDs := resq.Workers()
+func (worker *Worker) All(gores *Gores) []*Worker {
+	workerIDs := gores.Workers()
 	allWorkers := make([]*Worker, len(workerIDs))
 	for i, w := range workerIDs {
-		allWorkers[i] = worker.Find(w, resq)
+		allWorkers[i] = worker.Find(w, gores)
 	}
 
 	return allWorkers
 }
 
 // Find retruns the worker with given worker id
-func (worker *Worker) Find(workerID string, resq *ResQ) *Worker {
+func (worker *Worker) Find(workerID string, gores *Gores) *Worker {
 	var newWorker *Worker
 	if worker.Exists(workerID) == 1 {
 		idTokens := strings.Split(workerID, ":")
@@ -182,7 +162,7 @@ func (worker *Worker) Find(workerID string, resq *ResQ) *Worker {
 		}
 		qSet := mapset.NewSetFromSlice(inSlice)
 
-		config := worker.resq.config
+		config := worker.gores.config
 		newWorker = NewWorker(config, qSet, goroutineID)
 		newWorker.id = workerID
 	}
@@ -192,7 +172,7 @@ func (worker *Worker) Find(workerID string, resq *ResQ) *Worker {
 
 // Exists checks whether the worker with given id exists
 func (worker *Worker) Exists(workerID string) int64 {
-	reply, err := worker.resq.pool.Get().Do("SISMEMBER", watchedWorkers, workerID)
+	reply, err := worker.gores.pool.Get().Do("SISMEMBER", watchedWorkers, workerID)
 	if err != nil || reply == nil {
 		return 0
 	}
@@ -221,7 +201,7 @@ func (worker *Worker) WorkerPids() mapset.Set {
 // Size returns the total number of live workers
 func (worker *Worker) Size() int {
 	/* Return total number of workers */
-	return len(worker.resq.Workers())
+	return len(worker.gores.Workers())
 }
 
 // Start starts the worker and start working on tasks

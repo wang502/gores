@@ -2,15 +2,15 @@ package gores
 
 const (
 	// QUEUE
-	queuePrefix        = "resq:queue:%s"
-	workerPrefix       = "resq:worker:%s"
-	delayedQueuePrefix = "resq:delayed:%s"
-	statPrefix         = "resq:stat:%s"
+	queuePrefix        = "gores:queue:%s"
+	workerPrefix       = "gores:worker:%s"
+	delayedQueuePrefix = "gores:delayed:%s"
+	statPrefix         = "gores:stat:%s"
 
 	// SET
-	watchedQueues    = "resq:queues"
-	watchedSchedules = "resq:delayed_queue_schedule"
-	watchedWorkers   = "resq:workers"
+	watchedQueues    = "gores:queues"
+	watchedSchedules = "gores:delayed_queue_schedule"
+	watchedWorkers   = "gores:workers"
 
 	blpopMaxBlockTime = 1 /* Redis BLPOP maximum block time */
 

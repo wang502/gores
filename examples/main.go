@@ -26,12 +26,12 @@ func produce(config *gores.Config) error {
 		"Enqueue_timestamp": time.Now().Unix(),
 	}
 
-	resq := gores.NewResQ(config)
-	if resq == nil {
-		return errors.New("resq is nil")
+	gores := gores.NewGores(config)
+	if gores == nil {
+		return errors.New("gores is nil")
 	}
 
-	err := resq.Enqueue(item)
+	err := gores.Enqueue(item)
 	if err != nil {
 		return fmt.Errorf("produce job failed: %s", err)
 	}
@@ -53,11 +53,11 @@ func consume(config *gores.Config) error {
 }
 
 func getInfo(config *gores.Config) (map[string]interface{}, error) {
-	resq := gores.NewResQ(config)
-	if resq == nil {
-		log.Fatalf("resq is nil")
+	gores := gores.NewGores(config)
+	if gores == nil {
+		log.Fatalf("gores is nil")
 	}
-	info, err := resq.Info()
+	info, err := gores.Info()
 	if err != nil {
 		return nil, fmt.Errorf("Gores get info failed: %s", err)
 	}

@@ -11,12 +11,12 @@ import (
 type Job struct {
 	queue            string
 	payload          map[string]interface{}
-	resq             *ResQ
+	gores            *Gores
 	enqueueTimestamp int64
 }
 
 // NewJob initilizes a new job object
-func NewJob(queue string, payload map[string]interface{}, resq *ResQ) *Job {
+func NewJob(queue string, payload map[string]interface{}, gores *Gores) *Job {
 	var timestamp int64
 	_, ok := payload["Enqueue_timestamp"]
 	if !ok {
@@ -30,7 +30,7 @@ func NewJob(queue string, payload map[string]interface{}, resq *ResQ) *Job {
 	return &Job{
 		queue:            queue,
 		payload:          payload,
-		resq:             resq,
+		gores:            gores,
 		enqueueTimestamp: timestamp,
 	}
 }
@@ -54,10 +54,10 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
 		return false
 	}
 
-	now := job.resq.CurrentTime()
+	now := job.gores.CurrentTime()
 	retryAt := now + int64(retryEvery.(float64))
 	//log.Printf("retry_at: %d\n", retry_at)
-	err := job.resq.EnqueueAt(retryAt, payload)
+	err := job.gores.EnqueueAt(retryAt, payload)
 	if err != nil {
 		return false
 	}
@@ -67,26 +67,26 @@ func (job *Job) Retry(payload map[string]interface{}) bool {
 
 // Failed update the state of the job to be failed
 func (job *Job) Failed() {
-	NewStat("failed", job.resq).Incr()
-	NewStat(fmt.Sprintf("failed:%s", job.String()), job.resq).Incr()
+	NewStat("failed", job.gores).Incr()
+	NewStat(fmt.Sprintf("failed:%s", job.String()), job.gores).Incr()
 }
 
 // Processed updates the state of job to be processed
 func (job *Job) Processed() {
-	if job.resq == nil {
+	if job.gores == nil {
 		return
 	}
-	NewStat("processed", job.resq).Incr()
-	NewStat(fmt.Sprintf("processed:%s", job.String()), job.resq).Incr()
+	NewStat("processed", job.gores).Incr()
+	NewStat(fmt.Sprintf("processed:%s", job.String()), job.gores).Incr()
 }
 
 // ReserveJob uses BLPOP command to fetch job from Redis
-func ReserveJob(resq *ResQ, queues mapset.Set) (*Job, error) {
-	queue, payload, err := resq.BlockPop(queues)
+func ReserveJob(gores *Gores, queues mapset.Set) (*Job, error) {
+	queue, payload, err := gores.BlockPop(queues)
 	if err != nil {
 		return nil, fmt.Errorf("reserve job failed: %s", err)
 	}
-	return NewJob(queue, payload, resq), nil
+	return NewJob(queue, payload, gores), nil
 }
 
 // ExecuteJob executes the job, given the mapper of corresponding worker

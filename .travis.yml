@@ -13,5 +13,5 @@ before_script:
   - cd gores
 
 script:
-  - go test resq.go config.go job.go stat.go worker.go dispatcher.go constants.go resq_test.go job_test.go worker_test.go
-  - go test resq.go config.go job.go stat.go worker.go dispatcher.go constants.go scheduler.go scheduler_test.go
+  - go test gores.go config.go job.go stat.go worker.go dispatcher.go constants.go gores_test.go job_test.go worker_test.go
+  - go test gores.go config.go job.go stat.go worker.go dispatcher.go constants.go scheduler.go scheduler_test.go
