@@ -271,8 +271,6 @@ func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}
 
 			worker.lastActiveTime = time.Now().Unix()
 
-			log.Println(worker.lastActiveTime)
-
 			_, err := conn.Do("SET", fmt.Sprintf(workerLastActivePrefix, worker.String()), worker.lastActiveTime)
 
 			if err != nil {
