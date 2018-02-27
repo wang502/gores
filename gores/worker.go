@@ -15,17 +15,18 @@ import (
 
 // Worker represents a object involved in Gores
 type Worker struct {
-	id          string
-	goroutineID int
-	queues      mapset.Set
-	shutdown    bool
-	child       string
-	pid         int
-	hostname    string
-	gores       *Gores
-	started     int64
-	timeout     int
-	jobChan     chan *Job
+	id             string
+	goroutineID    int
+	queues         mapset.Set
+	shutdown       bool
+	child          string
+	pid            int
+	hostname       string
+	gores          *Gores
+	started        int64
+	timeout        int
+	jobChan        chan *Job
+	lastActiveTime int64
 }
 
 // NewWorker initlizes new worker
@@ -226,6 +227,12 @@ func (worker *Worker) Start(dispatcher *Dispatcher, tasks *map[string]interface{
 
 // work keeps fetching jobs from dispatcher and execute tasks until time out
 func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}) {
+
+	conn := dispatcher.gores.pool.Get()
+
+	log.Println(conn)
+	defer conn.Close()
+
 	for {
 		select {
 		case job, ok := <-worker.jobChan:
@@ -235,6 +242,16 @@ func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}
 
 			if err := ExecuteJob(job, tasks); err != nil {
 				log.Printf("failed to execute job: %s", err)
+			}
+
+			worker.lastActiveTime = time.Now().Unix()
+
+			log.Println(worker.lastActiveTime)
+
+			_, err := conn.Do("SET", fmt.Sprintf(workerLastActivePrefix, worker.String()), worker.lastActiveTime)
+
+			if err != nil {
+				log.Println(err)
 			}
 		}
 	}
