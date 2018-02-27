@@ -95,7 +95,8 @@ func ExecuteJob(job *Job, tasks *map[string]interface{}) error {
 	jobName, ok1 := job.payload["Name"]
 	jobArgs, ok2 := job.payload["Args"]
 	if !ok1 || !ok2 {
-		return fmt.Errorf("execute job failed: job payload has no key %s or %s", "Name", "Args")
+		return nil
+		//return fmt.Errorf("execute job failed: job payload has no key %s or %s", "Name", "Args")
 	}
 
 	name, ok1 := jobName.(string)
