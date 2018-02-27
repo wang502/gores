@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/deckarep/golang-set"
@@ -298,6 +299,95 @@ func (gores *Gores) Workers() []string {
 	}
 
 	return workers
+}
+
+func (gores *Gores) CleanDeadWorkers(expire int64) error {
+
+	conn := gores.pool.Get()
+	defer conn.Close()
+
+	workers := gores.Workers()
+
+	if len(workers) <= 0 {
+		log.Println("Nothing needs to do.")
+
+		return nil
+	}
+
+	var flag int
+
+	for _, w := range workers {
+
+		var lastActiveTime int64
+
+		flag = 0
+
+		data, err := conn.Do("GET", fmt.Sprintf(workerLastActivePrefix, w))
+
+		if err != nil {
+			return err
+		}
+
+		if data == nil {
+
+			flag = 1
+
+		} else {
+
+			var err error
+
+			tmp := string(data.([]byte))
+
+			lastActiveTime, err = strconv.ParseInt(tmp, 10, 64)
+
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			if time.Now().Unix()-lastActiveTime >= expire {
+				flag = 1
+			}
+		}
+
+		if flag == 1 {
+
+			idTokens := strings.Split(w, ":")
+			hostname := idTokens[0]
+			pid := idTokens[1]
+			gId, err := strconv.Atoi(idTokens[2])
+
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			queues := strings.Split(idTokens[3], ",")
+
+			queuesSet := mapset.NewSet()
+
+			for _, q := range queues {
+				queuesSet.Add(q)
+			}
+
+			currentWorker := NewWorker(gores.config, queuesSet, gId, hostname, pid)
+
+			if currentWorker != nil {
+
+				if strings.Compare(w, currentWorker.String()) == 0 {
+					err = currentWorker.UnregisterWorker()
+
+					if err != nil {
+						log.Println(err)
+					} else {
+						log.Println(fmt.Sprintf("%s has been cleaned. Last actived time is %d", w, lastActiveTime))
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // Info returns the information of the Redis queue

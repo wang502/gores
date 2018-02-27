@@ -30,19 +30,43 @@ type Worker struct {
 }
 
 // NewWorker initlizes new worker
-func NewWorker(config *Config, queues mapset.Set, goroutineID int) *Worker {
+func NewWorker(config *Config, queues mapset.Set, goroutineID int, arg ...string) *Worker {
+
 	gores := NewGores(config)
 	if gores == nil {
 		return nil
 	}
-	hostname, _ := os.Hostname()
+
+	var hostname string
+
+	if len(arg) >= 1 {
+		hostname = arg[0]
+	} else {
+		hostname, _ = os.Hostname()
+	}
+
+	var pid int
+
+	if len(arg) >= 2 {
+
+		var err error
+
+		pid, err = strconv.Atoi(arg[1])
+
+		if err != nil {
+			pid = os.Getpid()
+		}
+	} else {
+		pid = os.Getpid()
+	}
+
 	return &Worker{
 		id:          "",
 		goroutineID: goroutineID,
 		queues:      queues,
 		shutdown:    false,
 		child:       "",
-		pid:         os.Getpid(),
+		pid:         pid,
 		hostname:    hostname,
 		gores:       gores,
 		started:     0,
@@ -100,6 +124,9 @@ func (worker *Worker) UnregisterWorker() error {
 	if err != nil {
 		return fmt.Errorf("UnregisterWorker failed: %s", err)
 	}
+
+	conn.Do("DEL", fmt.Sprintf(workerLastActivePrefix, worker.String()))
+
 	worker.started = 0
 
 	pStat := NewStat(fmt.Sprintf("processed:%s", worker.String()), worker.gores)
@@ -229,8 +256,6 @@ func (worker *Worker) Start(dispatcher *Dispatcher, tasks *map[string]interface{
 func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}) {
 
 	conn := dispatcher.gores.pool.Get()
-
-	log.Println(conn)
 	defer conn.Close()
 
 	for {
