@@ -3,7 +3,10 @@ package gores
 import (
 	"errors"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/deckarep/golang-set"
 )
@@ -41,6 +44,7 @@ func (disp *Dispatcher) Start(tasks *map[string]interface{}) error {
 	var wg sync.WaitGroup
 	config := disp.gores.config
 	workers := make([]*Worker, disp.maxWorkers)
+	var totalWaitNumber int
 
 	for i := 0; i < disp.maxWorkers; i++ {
 		worker := NewWorker(config, disp.queues, i+1)
@@ -50,6 +54,7 @@ func (disp *Dispatcher) Start(tasks *map[string]interface{}) error {
 		workers[i] = worker
 
 		wg.Add(1)
+		totalWaitNumber++
 		go func() {
 			defer wg.Done()
 			err := worker.Start(disp, tasks)
@@ -60,11 +65,41 @@ func (disp *Dispatcher) Start(tasks *map[string]interface{}) error {
 	}
 
 	wg.Add(1)
+	totalWaitNumber++
 	go func() {
 		defer wg.Done()
 		disp.dispatch(workers)
 	}()
+
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+
+	go func() {
+		sig := <-gracefulStop
+		log.Printf("caught sig: %+v", sig)
+
+		for _, w := range workers {
+
+			log.Println("Start UnregisterWorker:", w.id)
+
+			err := w.UnregisterWorker()
+
+			if err != nil {
+				log.Println("UnregisterWorker Failed:", w.id)
+			} else {
+				log.Println("UnregisterWorker Success:", w.id)
+			}
+		}
+
+		log.Println("totalWaitNumber:", totalWaitNumber)
+		for i := 0; i < totalWaitNumber; i++ {
+			wg.Done()
+		}
+	}()
+
 	wg.Wait()
+
 	return nil
 }
 
