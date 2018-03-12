@@ -15,33 +15,58 @@ import (
 
 // Worker represents a object involved in Gores
 type Worker struct {
-	id          string
-	goroutineID int
-	queues      mapset.Set
-	shutdown    bool
-	child       string
-	pid         int
-	hostname    string
-	gores       *Gores
-	started     int64
-	timeout     int
-	jobChan     chan *Job
+	id             string
+	goroutineID    int
+	queues         mapset.Set
+	shutdown       bool
+	child          string
+	pid            int
+	hostname       string
+	gores          *Gores
+	started        int64
+	timeout        int
+	jobChan        chan *Job
+	lastActiveTime int64
 }
 
 // NewWorker initlizes new worker
-func NewWorker(config *Config, queues mapset.Set, goroutineID int) *Worker {
+func NewWorker(config *Config, queues mapset.Set, goroutineID int, arg ...string) *Worker {
+
 	gores := NewGores(config)
 	if gores == nil {
 		return nil
 	}
-	hostname, _ := os.Hostname()
+
+	var hostname string
+
+	if len(arg) >= 1 {
+		hostname = arg[0]
+	} else {
+		hostname, _ = os.Hostname()
+	}
+
+	var pid int
+
+	if len(arg) >= 2 {
+
+		var err error
+
+		pid, err = strconv.Atoi(arg[1])
+
+		if err != nil {
+			pid = os.Getpid()
+		}
+	} else {
+		pid = os.Getpid()
+	}
+
 	return &Worker{
 		id:          "",
 		goroutineID: goroutineID,
 		queues:      queues,
 		shutdown:    false,
 		child:       "",
-		pid:         os.Getpid(),
+		pid:         pid,
 		hostname:    hostname,
 		gores:       gores,
 		started:     0,
@@ -99,6 +124,9 @@ func (worker *Worker) UnregisterWorker() error {
 	if err != nil {
 		return fmt.Errorf("UnregisterWorker failed: %s", err)
 	}
+
+	conn.Do("DEL", fmt.Sprintf(workerLastActivePrefix, worker.String()))
+
 	worker.started = 0
 
 	pStat := NewStat(fmt.Sprintf("processed:%s", worker.String()), worker.gores)
@@ -226,6 +254,10 @@ func (worker *Worker) Start(dispatcher *Dispatcher, tasks *map[string]interface{
 
 // work keeps fetching jobs from dispatcher and execute tasks until time out
 func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}) {
+
+	conn := dispatcher.gores.pool.Get()
+	defer conn.Close()
+
 	for {
 		select {
 		case job, ok := <-worker.jobChan:
@@ -235,6 +267,14 @@ func (worker *Worker) work(dispatcher *Dispatcher, tasks *map[string]interface{}
 
 			if err := ExecuteJob(job, tasks); err != nil {
 				log.Printf("failed to execute job: %s", err)
+			}
+
+			worker.lastActiveTime = time.Now().Unix()
+
+			_, err := conn.Do("SET", fmt.Sprintf(workerLastActivePrefix, worker.String()), worker.lastActiveTime)
+
+			if err != nil {
+				log.Println(err)
 			}
 		}
 	}
